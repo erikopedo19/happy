@@ -10,12 +10,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { InviteMemberDialog } from "@/components/InviteMemberDialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
 import { Plus, Users, Edit, Trash2, UserPlus, Crown, Scissors } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useOrganization } from "@/hooks/use-organization";
 
 interface Team {
   id: string;
@@ -40,36 +44,42 @@ interface TeamMember {
   stylist: Stylist;
 }
 
+const db = supabase as any;
+
 const Teams = () => {
   const isMobile = useIsMobile();
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { organization, loading: orgLoading } = useOrganization();
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddMemberDialogOpen, setIsAddMemberDialogOpen] = useState(false);
+  const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [formData, setFormData] = useState({ name: "", description: "", color: "bg-blue-500" });
+  const [selectedStylistIds, setSelectedStylistIds] = useState<string[]>([]);
+  const isPremium = true; // placeholder plan flag
+  const maxTeams = isPremium ? 3 : 1;
 
   // Fetch teams
   const { data: teams = [], isLoading, error: teamsError } = useQuery<Team[]>({
     queryKey: ["teams", user?.id],
-    queryFn: async () => {
+    queryFn: async (): Promise<Team[]> => {
       if (!user) return [];
       try {
-        const userId = user.id;
-        const { data, error } = await supabase
-          .from("teams")
+        const { data, error } = await (db
+          .from("teams" as any)
           .select("*")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false });
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false }) as any);
         
         if (error) {
           console.error("Error fetching teams:", error.message);
           throw error;
         }
-        return data || [];
+        return (data || []) as Team[];
       } catch (error) {
         console.error("Failed to fetch teams:", error);
         toast({
@@ -113,19 +123,18 @@ const Teams = () => {
     enabled: !!user,
   });
 
-  // Fetch team members
-  const { data: teamMembers = [] } = useQuery<TeamMember[]>({
-    queryKey: ["team_members", selectedTeam?.id],
-    queryFn: async () => {
-      if (!selectedTeam) return [];
-      const { data, error } = await supabase
-        .from("team_members")
-        .select("*, stylist:stylists(id, name, avatar_url, title)")
-        .eq("team_id", selectedTeam.id);
+  // Fetch team members for all teams
+  const { data: allTeamMembers = [] } = useQuery<TeamMember[]>({
+    queryKey: ["team_members", user?.id],
+    queryFn: async (): Promise<TeamMember[]> => {
+      if (!user) return [];
+      const { data, error } = await (db
+        .from("team_members" as any)
+        .select("*, stylist:stylists(id, name, avatar_url, title)") as any);
       if (error) throw error;
-      return data || [];
+      return (data || []) as TeamMember[];
     },
-    enabled: !!selectedTeam,
+    enabled: !!user,
   });
 
   // Create team mutation
@@ -134,12 +143,11 @@ const Teams = () => {
       try {
         const userId = user?.id;
         if (!userId) throw new Error("User ID not available");
-        
-        const { error } = await supabase.from("teams").insert({
+        const { error } = await (db.from("teams" as any) as any).insert({
           user_id: userId,
           name: data.name,
           description: data.description,
-          color: data.color || "bg-blue-500",
+          color: data.color,
         });
         if (error) throw error;
       } catch (error: any) {
@@ -147,10 +155,11 @@ const Teams = () => {
           const userId = user?.id;
           if (!userId) throw new Error("User ID not available");
           
-          const { error: fallbackError } = await supabase.from("teams").insert({
+          const { error: fallbackError } = await (db.from("teams" as any) as any).insert({
             user_id: userId,
             name: data.name,
             description: data.description,
+            color: data.color,
           });
           if (fallbackError) throw fallbackError;
         } else {
@@ -180,16 +189,15 @@ const Teams = () => {
       try {
         const userId = user?.id;
         if (!userId) throw new Error("User ID not available");
-        
-        const { error } = await supabase
-          .from("teams")
+        const { error } = await (db
+          .from("teams" as any)
           .update({ 
             name: data.name, 
             description: data.description, 
+            user_id: userId,
             color: data.color,
-            user_id: userId
-          })
-          .eq("id", data.id);
+          }) as any)
+          .eq("id", data.id) as any;
         if (error) throw error;
       } catch (error: any) {
         // Check if the error is related to the color column
@@ -198,14 +206,15 @@ const Teams = () => {
           const userId = user?.id;
           if (!userId) throw new Error("User ID not available");
           
-          const { error: fallbackError } = await supabase
-            .from("teams")
+          const { error: fallbackError } = await (db
+            .from("teams" as any)
             .update({ 
               name: data.name, 
               description: data.description,
-              user_id: userId
-            })
-            .eq("id", data.id);
+              user_id: userId,
+              color: data.color,
+            }) as any)
+            .eq("id", data.id) as any;
           if (fallbackError) throw fallbackError;
         } else {
           throw error;
@@ -226,7 +235,7 @@ const Teams = () => {
   // Delete team mutation
   const deleteTeamMutation = useMutation({
     mutationFn: async (teamId: string) => {
-      const { error } = await supabase.from("teams").delete().eq("id", teamId);
+      const { error } = await db.from("teams" as any).delete().eq("id", teamId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -235,6 +244,37 @@ const Teams = () => {
     },
     onError: () => {
       toast({ title: "Failed to delete team", variant: "destructive" });
+    },
+  });
+
+  // Add members mutation
+  const addMembersMutation = useMutation({
+    mutationFn: async ({ teamId, stylistIds }: { teamId: string; stylistIds: string[] }) => {
+      if (!teamId || stylistIds.length === 0) return;
+      const rows = stylistIds.map((id) => ({
+        team_id: teamId,
+        stylist_id: id,
+        role: "member",
+      }));
+      const { error } = await (db.from("team_members" as any) as any).upsert(rows, {
+        onConflict: "team_id,stylist_id",
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      if (selectedTeam?.id) {
+        queryClient.invalidateQueries({ queryKey: ["team_members", user?.id] });
+      }
+      setSelectedStylistIds([]);
+      setIsAddMemberDialogOpen(false);
+      toast({ title: "Members added to team" });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to add members",
+        description: error?.message || "Please try again",
+        variant: "destructive",
+      });
     },
   });
 
@@ -254,6 +294,21 @@ const Teams = () => {
     setIsEditDialogOpen(true);
   };
 
+  const handleAddMembers = () => {
+    if (!selectedTeam) return;
+    const existingIds = new Set(allTeamMembers.map((m) => m.stylist_id));
+    const newIds = selectedStylistIds.filter((id) => !existingIds.has(id));
+    if (newIds.length === 0) {
+      toast({
+        title: "No stylists selected",
+        description: "Select at least one stylist that is not already in the team.",
+        variant: "destructive",
+      });
+      return;
+    }
+    addMembersMutation.mutate({ teamId: selectedTeam.id, stylistIds: newIds });
+  };
+
   const colorOptions = [
     { value: "bg-blue-500", label: "Blue", gradient: "from-blue-500 to-cyan-500" },
     { value: "bg-purple-500", label: "Purple", gradient: "from-purple-500 to-pink-500" },
@@ -262,6 +317,22 @@ const Teams = () => {
     { value: "bg-pink-500", label: "Pink", gradient: "from-pink-500 to-rose-500" },
     { value: "bg-indigo-500", label: "Indigo", gradient: "from-indigo-500 to-purple-500" },
   ];
+
+  if (orgLoading) {
+    return (
+      <SidebarProvider defaultOpen={!isMobile}>
+        <div className="min-h-screen flex w-full bg-background">
+          <AppSidebar />
+          <main className="flex-1 flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/30">
+            <div className="flex flex-col items-center gap-3 text-muted-foreground">
+              <div className="h-10 w-10 border-4 border-muted rounded-full border-t-primary animate-spin" />
+              <p className="text-sm">Loading organization…</p>
+            </div>
+          </main>
+        </div>
+      </SidebarProvider>
+    );
+  }
 
   return (
     <SidebarProvider defaultOpen={!isMobile}>
@@ -281,10 +352,19 @@ const Teams = () => {
                 <h1 className="text-3xl font-bold">Teams</h1>
                 <p className="text-muted-foreground mt-1">Organize your stylists into teams</p>
               </div>
-              <Button onClick={() => setIsCreateDialogOpen(true)} className="gap-2">
-                <Plus className="h-4 w-4" />
-                Create Team
-              </Button>
+              <div className="flex flex-col items-end gap-1">
+                <Button
+                  onClick={() => setIsCreateDialogOpen(true)}
+                  className="gap-2"
+                  disabled={teams.length >= maxTeams}
+                >
+                  <Plus className="h-4 w-4" />
+                  Create Team
+                </Button>
+                <div className="text-xs text-muted-foreground">
+                  {teams.length}/{maxTeams} teams used (premium)
+                </div>
+              </div>
             </div>
 
             {isLoading ? (
@@ -339,6 +419,8 @@ const Teams = () => {
                 {teams.map((team) => {
                   // Handle missing color value gracefully
                   const colorScheme = team.color ? colorOptions.find((c) => c.value === team.color) || colorOptions[0] : colorOptions[0];
+                  // Calculate actual member count for this team
+                  const memberCount = allTeamMembers.filter(member => member.team_id === team.id).length;
                   return (
                     <Card key={team.id} className="overflow-hidden border-0 hover:shadow-xl transition-all">
                       <div className={`h-2 bg-gradient-to-r ${colorScheme?.gradient || 'from-blue-500 to-cyan-500'}`} />
@@ -370,7 +452,7 @@ const Teams = () => {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <Users className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm text-muted-foreground">0 members</span>
+                            <span className="text-sm text-muted-foreground">{memberCount} members</span>
                           </div>
                           <Button
                             variant="outline"
@@ -393,6 +475,87 @@ const Teams = () => {
           </div>
         </main>
       </div>
+
+      {/* Add Members Dialog */}
+      <Dialog
+        open={isAddMemberDialogOpen}
+        onOpenChange={(open) => {
+          setIsAddMemberDialogOpen(open);
+          if (!open) setSelectedStylistIds([]);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add members to team</DialogTitle>
+            <DialogDescription>Select existing stylists or invite by email.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">{selectedTeam?.name || "Select a team"}</p>
+                <p className="text-xs text-muted-foreground">Pending invites will show in Settings → Notifications.</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setIsInviteDialogOpen(true)}>
+                Invite by email
+              </Button>
+            </div>
+            <Separator />
+            {stylists.length === 0 ? (
+              <div className="text-sm text-muted-foreground">
+                No stylists yet. Invite a stylist to get started.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {stylists.map((stylist) => {
+                  const memberIds = new Set(allTeamMembers.map((m) => m.stylist_id));
+                  const alreadyMember = memberIds.has(stylist.id);
+                  const checked = selectedStylistIds.includes(stylist.id);
+                  return (
+                    <div
+                      key={stylist.id}
+                      className={`flex items-center gap-3 p-2 rounded-md border ${alreadyMember ? "opacity-60" : ""}`}
+                    >
+                      <Checkbox
+                        checked={checked}
+                        disabled={alreadyMember}
+                        onCheckedChange={(checked) => {
+                          setSelectedStylistIds((prev) =>
+                            checked ? [...prev, stylist.id] : prev.filter((id) => id !== stylist.id)
+                          );
+                        }}
+                      />
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={stylist.avatar_url || undefined} alt={stylist.name} />
+                        <AvatarFallback>{stylist.name?.slice(0, 2).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">{stylist.name}</p>
+                        <p className="text-xs text-muted-foreground">{stylist.title || "Stylist"}</p>
+                      </div>
+                      {alreadyMember && (
+                        <Badge variant="secondary" className="text-xs">
+                          Already in team
+                        </Badge>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddMemberDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddMembers} disabled={!selectedTeam || selectedStylistIds.length === 0 || addMembersMutation.isPending}>
+              {addMembersMutation.isPending ? "Adding..." : "Add selected"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Invite Dialog (email) */}
+      <InviteMemberDialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen} />
 
       {/* Create Team Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>

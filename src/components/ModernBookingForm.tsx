@@ -25,6 +25,7 @@ interface Service {
 interface ModernBookingFormProps {
   form: UseFormReturn<any>;
   services: Service[];
+  stylists?: { id: string; name: string; avatar_url?: string | null; title?: string | null }[];
   selectedDate: Date | undefined;
   setSelectedDate: (date: Date | undefined) => void;
   selectedTime: string;
@@ -44,6 +45,7 @@ interface ModernBookingFormProps {
 const ModernBookingForm = ({
   form,
   services,
+  stylists = [],
   selectedDate,
   setSelectedDate,
   selectedTime,
@@ -341,6 +343,57 @@ const ModernBookingForm = ({
                                 <FormLabel className="text-gray-400 text-xs">Σημειώσεις</FormLabel>
                                 <FormControl>
                                   <Input {...field} className="bg-[#1a1a1a] border-gray-700 text-white rounded-xl h-10 text-sm focus:border-current focus:ring-1 focus:ring-current" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="stylist_id"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-gray-400 text-xs">Επιλογή Στυλίστα</FormLabel>
+                                <FormControl>
+                                  <div className="grid sm:grid-cols-2 gap-2">
+                                    {stylists.length === 0 && (
+                                      <div className="text-gray-500 text-xs col-span-2">Δεν υπάρχουν διαθέσιμοι στυλίστες</div>
+                                    )}
+                                    {stylists.map((stylist) => {
+                                      const isSelected = field.value === stylist.id;
+                                      return (
+                                        <button
+                                          key={stylist.id}
+                                          type="button"
+                                          onClick={() => field.onChange(stylist.id)}
+                                          className={cn(
+                                            "flex items-center gap-3 p-3 rounded-xl border text-left transition-all duration-200 bg-[#1a1a1a]",
+                                            isSelected
+                                              ? "border-white/70 shadow-[0_0_0_1px] shadow-white/40"
+                                              : "border-gray-700 hover:border-gray-500"
+                                          )}
+                                        >
+                                          <div className="h-10 w-10 rounded-full bg-gray-800 border border-gray-700 overflow-hidden flex items-center justify-center text-sm font-semibold text-white">
+                                            {stylist.avatar_url ? (
+                                              <img src={stylist.avatar_url} alt={stylist.name} className="h-full w-full object-cover" />
+                                            ) : (
+                                              stylist.name.charAt(0).toUpperCase()
+                                            )}
+                                          </div>
+                                          <div className="flex-1 min-w-0">
+                                            <div className="text-white text-sm font-medium truncate">{stylist.name}</div>
+                                            <div className="text-gray-500 text-xs truncate">{stylist.title || "Στυλίστας"}</div>
+                                          </div>
+                                          <div
+                                            className={cn(
+                                              "h-2 w-2 rounded-full",
+                                              isSelected ? "bg-green-400" : "bg-gray-700"
+                                            )}
+                                          />
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>

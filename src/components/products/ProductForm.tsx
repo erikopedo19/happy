@@ -94,7 +94,7 @@ export const ProductForm = ({
       } else {
         const { error } = await supabase
           .from("products")
-          .insert(productData);
+          .insert([productData]);
         
         if (error) throw error;
         toast({ title: "Product created successfully" });
@@ -103,8 +103,13 @@ export const ProductForm = ({
       onSuccess();
     } catch (error) {
       console.error("Error saving product:", error);
+      const description =
+        typeof (error as any)?.message === "string"
+          ? (error as any).message
+          : "Failed to save product. Please try again.";
       toast({
         title: `Error ${product ? "updating" : "creating"} product`,
+        description,
         variant: "destructive",
       });
     } finally {

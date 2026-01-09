@@ -8,6 +8,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
+const db = supabase as any;
+
 export type Product = {
   id: string;
   name: string;
@@ -26,21 +28,24 @@ const Products = () => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const { user } = useAuth();
 
-  const { data: products = [], isLoading, refetch } = useQuery({
-    queryKey: ["products", user?.id],
-    queryFn: async () => {
-      if (!user?.id) throw new Error("No user found");
+  const { data: products = [], isLoading, refetch } = useQuery<Product[], Error>({
+    queryKey: ["products", user?.id ?? "no-user"],
+    queryFn: async (): Promise<Product[]> => {
+      if (!user?.id) {
+        throw new Error("User not found");
+      }
       
-      const { data, error } = await supabase
+      const { data, error } = await (db
         .from("products")
         .select("*")
         .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false }) as any);
 
       if (error) throw error;
-      return data as Product[];
+      return (data || []) as Product[];
     },
     enabled: !!user?.id,
+    retry: 1,
   });
 
   const handleAddProduct = () => {

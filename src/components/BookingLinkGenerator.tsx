@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Copy, ExternalLink, RefreshCw, Share2, Save } from "lucide-react";
+import { Copy, ExternalLink, RefreshCw, Share2, Save, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +18,8 @@ const BookingLinkGenerator = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [emailTheme, setEmailTheme] = useState<"default" | "minimal" | "festive">("default");
+  const [accentColor, setAccentColor] = useState("#1a1a1a");
 
   // Fetch user profile with booking link
   const { data: profile, refetch } = useQuery({
@@ -27,7 +29,7 @@ const BookingLinkGenerator = () => {
 
       const { data, error } = await supabase
         .from('profiles')
-        .select('booking_link, full_name, ask_phone, ask_notes')
+        .select('booking_link, full_name, ask_phone, ask_notes, brand_color')
         .eq('id', user.id)
         .single();
 
@@ -40,9 +42,10 @@ const BookingLinkGenerator = () => {
               email: user.email,
               full_name: user.user_metadata?.full_name || user.email?.split('@')[0],
               ask_phone: true, // Default to true for new profiles
-              ask_notes: true  // Default to true for new profiles
+              ask_notes: true,  // Default to true for new profiles
+              brand_color: "#1a1a1a"
             })
-            .select('booking_link, full_name, ask_phone, ask_notes')
+            .select('booking_link, full_name, ask_phone, ask_notes, brand_color')
             .single();
 
           if (createError) throw createError;
@@ -62,6 +65,8 @@ const BookingLinkGenerator = () => {
     // Set askPhone and askNotes from profile, default to true if not present
     setAskPhone(profile?.ask_phone ?? true);
     setAskNotes(profile?.ask_notes ?? true);
+    setAccentColor(profile?.brand_color ?? "#1a1a1a");
+    // We don't persist theme server-side yet; keep default unless user changes locally
   }, [profile]);
 
   const getBookingUrl = () => {
@@ -70,6 +75,8 @@ const BookingLinkGenerator = () => {
     const params = new URLSearchParams();
     if (askPhone) params.append('askPhone', 'true');
     if (askNotes) params.append('askNotes', 'true');
+    if (emailTheme) params.append('theme', emailTheme);
+    if (accentColor) params.append('accent', accentColor);
     const queryString = params.toString();
     return queryString ? `${baseUrl}?${queryString}` : baseUrl;
   };
@@ -104,6 +111,7 @@ const BookingLinkGenerator = () => {
           booking_link: customSlug.trim(),
           ask_phone: askPhone,
           ask_notes: askNotes,
+          brand_color: accentColor,
           updated_at: new Date().toISOString()
         })
         .eq('id', user.id);
@@ -220,7 +228,15 @@ const BookingLinkGenerator = () => {
               </div>
               <Button
                 onClick={updateSlug}
-                disabled={isGenerating || (customSlug === profile?.booking_link && askPhone === (profile?.ask_phone ?? true) && askNotes === (profile?.ask_notes ?? true))}
+                disabled={
+                  isGenerating ||
+                  (
+                    customSlug === profile?.booking_link &&
+                    askPhone === (profile?.ask_phone ?? true) &&
+                    askNotes === (profile?.ask_notes ?? true) &&
+                    accentColor === (profile?.brand_color ?? "#1a1a1a")
+                  )
+                }
                 className="bg-blue-600 hover:bg-blue-700 text-white"
               >
                 {isGenerating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
@@ -261,6 +277,47 @@ const BookingLinkGenerator = () => {
                   onCheckedChange={(checked) => setAskNotes(checked as boolean)}
                 />
                 <Label htmlFor="askNotes" className="font-normal cursor-pointer">Ask for Notes</Label>
+              </div>
+              <div className="grid gap-2">
+                <Label>Email Template</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {[
+                    { value: "default", label: "Default" },
+                    { value: "minimal", label: "Minimal" },
+                    { value: "festive", label: "Festive" },
+                  ].map((opt) => (
+                    <Button
+                      key={opt.value}
+                      variant={emailTheme === opt.value ? "default" : "outline"}
+                      className="w-full justify-between"
+                      onClick={() => setEmailTheme(opt.value as typeof emailTheme)}
+                      type="button"
+                    >
+                      {opt.label}
+                      {emailTheme === opt.value && <Check className="w-4 h-4" />}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="accentColor">Accent Color</Label>
+                <div className="flex items-center gap-3">
+                  <input
+                    id="accentColor"
+                    type="color"
+                    value={accentColor}
+                    onChange={(e) => setAccentColor(e.target.value)}
+                    className="h-10 w-16 rounded border border-input bg-background cursor-pointer"
+                  />
+                  <Input
+                    value={accentColor}
+                    onChange={(e) => setAccentColor(e.target.value)}
+                    className="font-mono"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Used for email header buttons and accents. Shared in the link so the public booking page can apply it.
+                </p>
               </div>
             </div>
           </div>

@@ -16,6 +16,7 @@ const bookingSchema = z.object({
   customer_email: z.string().email("Valid email is required"),
   customer_phone: z.string().optional(),
   service_id: z.string().min(1, "Please select a service"),
+  stylist_id: z.string().min(1, "Please select a stylist"),
   notes: z.string().optional(),
 });
 
@@ -27,6 +28,13 @@ interface Service {
   color: string;
   text_color: string;
   border_color: string;
+}
+
+interface Stylist {
+  id: string;
+  name: string;
+  avatar_url?: string | null;
+  title?: string | null;
 }
 
 interface BusinessProfile {
@@ -46,6 +54,7 @@ interface AgendaSettings {
   start_hour: string;
   end_hour: string;
   service_duration: number;
+  working_days?: number[] | null;
 }
 
 interface Appointment {
@@ -53,6 +62,7 @@ interface Appointment {
   appointment_date: string;
   appointment_time: string;
   service: Service;
+  stylist_id?: string | null;
 }
 
 const Booking = () => {
@@ -63,6 +73,8 @@ const Booking = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [timeSlots, setTimeSlots] = useState<string[]>([]);
   const [bookingError, setBookingError] = useState<BookingError | null>(null);
+  const [emailTheme, setEmailTheme] = useState<"default" | "minimal" | "festive">("default");
+  const [accentColor, setAccentColor] = useState<string>("#1a1a1a");
   const { toast } = useToast();
 
   console.log('Booking component loaded with bookingLink:', bookingLink);
@@ -74,6 +86,7 @@ const Booking = () => {
       customer_email: "",
       customer_phone: "",
       service_id: "",
+      stylist_id: "",
       notes: "",
     },
   });
@@ -135,6 +148,27 @@ const Booking = () => {
     retryDelay: 1000,
   });
 
+  // Fetch public stylists for this business (after profile resolves)
+  const { data: stylists = [] } = useQuery<Stylist[]>({
+    queryKey: ['public-stylists', businessProfile?.id],
+    queryFn: async () => {
+      if (!businessProfile?.id) return [];
+
+      const { data, error } = await supabase
+        .from('stylists')
+        .select('id, name, avatar_url, title')
+        .eq('user_id', businessProfile.id)
+        .eq('is_public', true);
+
+      if (error) {
+        console.error('Error fetching stylists:', error);
+        return [];
+      }
+      return data || [];
+    },
+    enabled: !!businessProfile?.id,
+  });
+
   // Fetch services for this business
   const { data: services = [], error: servicesError } = useQuery<Service[]>({
     queryKey: ['public-services', businessProfile?.id],
@@ -191,30 +225,38 @@ const Booking = () => {
       
       if (error && error.code !== 'PGRST116') {
         console.error('Error fetching agenda settings:', error);
-        return { start_hour: '08:00', end_hour: '18:00', service_duration: 30 };
+        return { start_hour: '08:00', end_hour: '18:00', service_duration: 30, working_days: [0,1,2,3,4,5,6] };
       }
-      return data || { start_hour: '08:00', end_hour: '18:00', service_duration: 30 };
+      return data || { start_hour: '08:00', end_hour: '18:00', service_duration: 30, working_days: [0,1,2,3,4,5,6] };
     },
     enabled: !!businessProfile?.id,
   });
 
   // Fetch existing appointments for selected date
-  const { data: existingAppointments = [] } = useQuery<Appointment[]>({
-    queryKey: ['public-appointments', businessProfile?.id, selectedDate],
-    queryFn: async () => {
+  const selectedStylistId = form.watch("stylist_id");
+
+  const { data: existingAppointments = [] } = useQuery<Appointment[], Error>({
+    queryKey: [
+      'public-appointments',
+      businessProfile?.id ?? 'no-business',
+      selectedDate ? format(selectedDate, 'yyyy-MM-dd') : 'no-date',
+      selectedStylistId ?? 'no-stylist'
+    ],
+    queryFn: async (): Promise<Appointment[]> => {
       if (!businessProfile?.id || !selectedDate) return [];
       
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
       console.log('Fetching appointments for date:', dateStr);
       
-      const { data, error } = await supabase
+      const { data, error } = await (supabase
         .from('appointments')
         .select(`
           *,
           service:services(*)
         `)
         .eq('user_id', businessProfile.id)
-        .eq('appointment_date', dateStr);
+        .eq('appointment_date', dateStr)
+        .eq('stylist_id', selectedStylistId) as any);
       
       console.log('Appointments query result:', { data, error });
       
@@ -222,9 +264,9 @@ const Booking = () => {
         console.error('Error fetching appointments:', error);
         return [];
       }
-      return data || [];
+      return (data || []) as Appointment[];
     },
-    enabled: !!businessProfile?.id && !!selectedDate,
+    enabled: !!businessProfile?.id && !!selectedDate && !!selectedStylistId,
   });
 
   // Generate time slots
@@ -251,12 +293,30 @@ const Booking = () => {
     }
   }, [settings]);
 
+  // Use profile brand color as fallback accent
+  useEffect(() => {
+    if (businessProfile?.brand_color && accentColor === "#1a1a1a") {
+      setAccentColor(businessProfile.brand_color);
+    }
+  }, [businessProfile?.brand_color]);
+
+  // Parse query params for theme/accent
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const theme = params.get('theme') as "default" | "minimal" | "festive" | null;
+    const accent = params.get('accent');
+    if (theme) setEmailTheme(theme);
+    if (accent) setAccentColor(accent);
+  }, []);
+
   // Check if a time slot is available
   const isTimeSlotAvailable = (time: string) => {
     try {
-      if (!form.watch("service_id")) return false;
+      const selectedServiceId = form.watch("service_id");
+      const stylistId = selectedStylistId;
+      if (!selectedServiceId || !stylistId) return false;
       
-      const selectedService = services.find(s => s.id === form.watch("service_id"));
+      const selectedService = services.find(s => s.id === selectedServiceId);
       if (!selectedService) return false;
 
       const slotInterval = settings?.service_duration || 30;
@@ -270,6 +330,8 @@ const Booking = () => {
         
         const isOccupied = existingAppointments.some(apt => {
           if (!apt.service) return false; // Skip if service is missing
+          const matchesStylist = apt.stylist_id ? apt.stylist_id === stylistId : false;
+          if (!matchesStylist) return false;
           const aptTime = apt.appointment_time?.substring(0, 5);
           if (!aptTime) return false;
           const aptDuration = apt.service.duration;
@@ -312,6 +374,22 @@ const Booking = () => {
     try {
       console.log('Creating booking with values:', values);
       
+      // Guard against race: ensure the slot is still free for this stylist
+      if (!isTimeSlotAvailable(selectedTime)) {
+        const error: BookingError = {
+          code: 'SLOT_TAKEN',
+          message: 'Time slot unavailable',
+          details: 'This stylist is no longer free at the selected time. Please pick another slot.',
+        };
+        setBookingError(error);
+        toast({
+          title: error.message,
+          description: error.details,
+          variant: "destructive",
+        });
+        return false;
+      }
+
       // First, check if customer already exists for this business owner and email
       const { data: existingCustomers, error: searchError } = await supabase
         .from('customers')
@@ -381,6 +459,7 @@ const Booking = () => {
         .insert({
           customer_id: customer.id,
           service_id: values.service_id,
+          stylist_id: values.stylist_id,
           appointment_date: format(selectedDate, 'yyyy-MM-dd'),
           appointment_time: selectedTime,
           notes: values.notes || null,
@@ -406,6 +485,7 @@ const Booking = () => {
       // Send confirmation email via Resend
       try {
         const selectedService = services.find(s => s.id === values.service_id);
+        const selectedStylist = stylists.find(s => s.id === values.stylist_id);
         const { data: emailData, error: emailError } = await supabase.functions.invoke('send-booking-confirmation', {
           body: {
             customerEmail: values.customer_email,
@@ -418,6 +498,11 @@ const Booking = () => {
             price: selectedService?.price,
             notes: values.notes,
             bookingId: newAppointment?.id?.substring(0, 8), // Use first 8 chars of UUID
+            theme: emailTheme,
+            accentColor,
+            stylistName: selectedStylist?.name,
+            stylistTitle: selectedStylist?.title,
+            stylistAvatar: selectedStylist?.avatar_url,
           },
         });
 
@@ -574,6 +659,7 @@ const Booking = () => {
       onSubmit={onSubmit}
       isLoading={isLoading}
       businessProfile={businessProfile}
+      workingDays={settings?.working_days ?? [0,1,2,3,4,5,6]}
     />
   );
 };

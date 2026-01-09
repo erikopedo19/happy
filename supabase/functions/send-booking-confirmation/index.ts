@@ -1,10 +1,29 @@
+// Minimal typings so local TS tooling recognizes Deno globals in this edge function context.
+declare const Deno: {
+  env: {
+    get(key: string): string | undefined
+  }
+}
+
+// TS in the local toolchain doesn't resolve remote Deno std imports; ignore for build tooling.
+// @ts-ignore
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
+const FUNCTION_SECRET = Deno.env.get('FUNCTION_SECRET')
+const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ?? '')
+  .split(',')
+  .map((o: string) => o.trim())
+  .filter(Boolean)
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+const buildCorsHeaders = (origin: string) => ({
+  'Access-Control-Allow-Origin': origin,
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-api-key',
+})
+
+const isAllowedOrigin = (origin: string) => {
+  if (!ALLOWED_ORIGINS.length) return false
+  return ALLOWED_ORIGINS.includes(origin)
 }
 
 interface BookingConfirmationData {
@@ -20,25 +39,110 @@ interface BookingConfirmationData {
   bookingId?: string
 }
 
-serve(async (req) => {
+const validate = (payload: unknown): BookingConfirmationData => {
+  if (typeof payload !== 'object' || payload === null) {
+    throw new Error('Invalid payload')
+  }
+  const obj = payload as Record<string, unknown>
+  const requiredStrings: Array<keyof BookingConfirmationData> = [
+    'customerEmail',
+    'customerName',
+    'businessName',
+    'serviceName',
+    'appointmentDate',
+    'appointmentTime',
+  ]
+
+  for (const key of requiredStrings) {
+    if (typeof obj[key] !== 'string' || !obj[key]) {
+      throw new Error(`Missing or invalid field: ${key}`)
+    }
+  }
+
+  if (obj.price !== undefined && typeof obj.price !== 'number') {
+    throw new Error('Invalid field: price')
+  }
+  if (obj.customerPhone !== undefined && typeof obj.customerPhone !== 'string') {
+    throw new Error('Invalid field: customerPhone')
+  }
+  if (obj.notes !== undefined && typeof obj.notes !== 'string') {
+    throw new Error('Invalid field: notes')
+  }
+  if (obj.bookingId !== undefined && typeof obj.bookingId !== 'string') {
+    throw new Error('Invalid field: bookingId')
+  }
+
+  return {
+    customerEmail: obj.customerEmail as string,
+    customerName: obj.customerName as string,
+    businessName: obj.businessName as string,
+    serviceName: obj.serviceName as string,
+    appointmentDate: obj.appointmentDate as string,
+    appointmentTime: obj.appointmentTime as string,
+    price: obj.price as number | undefined,
+    customerPhone: obj.customerPhone as string | undefined,
+    notes: obj.notes as string | undefined,
+    bookingId: obj.bookingId as string | undefined,
+  }
+}
+
+serve(async (req: Request) => {
+  const origin = req.headers.get('origin') ?? ''
+  const allowedOrigin = isAllowedOrigin(origin) ? origin : ALLOWED_ORIGINS[0]
+
+  if (!allowedOrigin) {
+    return new Response(
+      JSON.stringify({ error: 'Origin not allowed' }),
+      { status: 403, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
+  const corsHeaders = {
+    ...buildCorsHeaders(allowedOrigin),
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  }
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
 
+  // Require shared secret to prevent abuse
+  if (!FUNCTION_SECRET) {
+    return new Response(
+      JSON.stringify({ error: 'Server misconfigured: missing FUNCTION_SECRET' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    )
+  }
+
+  const apiKey = req.headers.get('x-api-key')
+  if (!apiKey || apiKey !== FUNCTION_SECRET) {
+    return new Response(
+      JSON.stringify({ error: 'Unauthorized' }),
+      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    )
+  }
+
+  if (!RESEND_API_KEY) {
+    return new Response(
+      JSON.stringify({ error: 'Server misconfigured: missing RESEND_API_KEY' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    )
+  }
+
   try {
-    const { 
-      customerEmail, 
+    const {
+      customerEmail,
       customerName,
       customerPhone,
-      businessName, 
-      serviceName, 
-      appointmentDate, 
+      businessName,
+      serviceName,
+      appointmentDate,
       appointmentTime,
       price,
       notes,
       bookingId
-    }: BookingConfirmationData = await req.json()
+    } = validate(await req.json())
 
     // Send email via Resend
     const res = await fetch('https://api.resend.com/emails', {
@@ -213,8 +317,9 @@ serve(async (req) => {
     )
   } catch (error) {
     console.error('Error sending email:', error)
+    const message = error instanceof Error ? error.message : 'Unknown error'
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: message }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,

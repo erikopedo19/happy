@@ -23,6 +23,48 @@ export function useOrganization() {
   const [membership, setMembership] = useState<Membership | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const ensureMembership = async (orgId: string) => {
+    if (!user) return;
+    const { data: existing } = await (supabase
+      .from("memberships" as any)
+      .select("id")
+      .eq("org_id", orgId)
+      .eq("user_id", user.id)
+      .maybeSingle() as any);
+
+    if (!existing) {
+      await supabase.from("memberships" as any).insert({
+        org_id: orgId,
+        user_id: user.id,
+        role: "owner",
+      });
+    }
+  };
+
+  const createDefaultOrg = async () => {
+    if (!user) return null;
+    const baseSlug = `org-${user.id.slice(0, 8)}`;
+    const slug = `${baseSlug}-${Date.now()}`;
+    const { data, error } = await (supabase
+      .from("organizations" as any)
+      .insert({
+        name: "My Barbershop",
+        slug,
+        created_by: user.id,
+      })
+      .select("*")
+      .single() as any);
+
+    if (error) {
+      console.error("Error creating organization:", error);
+      return null;
+    }
+
+    await ensureMembership(data.id);
+
+    return data as Organization;
+  };
+
   useEffect(() => {
     async function loadOrg() {
       if (!user) {
@@ -47,6 +89,7 @@ export function useOrganization() {
             user_id: user.id,
             role: 'owner'
           });
+          await ensureMembership(ownedOrgs.id);
         } else {
           // If not owner, check memberships
           const { data: memberships } = await (supabase
@@ -63,6 +106,17 @@ export function useOrganization() {
               user_id: memberships.user_id,
               role: memberships.role
             });
+          } else {
+            const newOrg = await createDefaultOrg();
+            if (newOrg) {
+              setOrganization(newOrg);
+              setMembership({
+                id: 'owner',
+                org_id: newOrg.id,
+                user_id: user.id,
+                role: 'owner',
+              });
+            }
           }
         }
       } catch (error) {

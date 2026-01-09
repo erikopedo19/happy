@@ -1,5 +1,6 @@
 
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ThemeProvider } from "next-themes";
@@ -28,6 +29,15 @@ import DbPrevStats from "./pages/DbPrevStats";
 const queryClient = new QueryClient();
 
 function App() {
+  const [showSplash, setShowSplash] = useState(true);
+
+  useEffect(() => {
+    const t = setTimeout(() => setShowSplash(false), 3000);
+    return () => clearTimeout(t);
+  }, []);
+
+  const logoSrc = "/image-Photoroom%20(48).png";
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
@@ -35,6 +45,19 @@ function App() {
           <div className="min-h-screen bg-background font-sans antialiased">
             <Toaster />
             <Sonner />
+            {showSplash && (
+              <div className="splash-screen">
+                <div className="splash-overlay" />
+                <div className="splash-content">
+                  <img
+                    src={logoSrc}
+                    alt="Logo"
+                    className="splash-logo"
+                  />
+                  <div className="splash-wipe" />
+                </div>
+              </div>
+            )}
           <BrowserRouter>
             <Routes>
               <Route path="/auth" element={<Auth />} />

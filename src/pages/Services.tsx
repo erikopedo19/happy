@@ -13,6 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Edit, Trash2, Clock, Palette } from "lucide-react";
 
+const db = supabase as any;
+
 interface Service {
   id: string;
   name: string;
@@ -22,13 +24,6 @@ interface Service {
   border_color: string;
   user_id: string;
   price?: number;
-  stylist_id?: string;
-}
-
-interface Stylist {
-  id: string;
-  name: string;
-  user_id: string;
 }
 
 const Services = () => {
@@ -38,28 +33,11 @@ const Services = () => {
     name: "",
     duration: 30,
     color: "bg-blue-50",
-    price: 0,
-    stylist_id: ""
+    price: 0
   });
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-
-  const { data: stylists = [] } = useQuery<Stylist[]>({
-    queryKey: ['stylists'],
-    queryFn: async () => {
-      if (!user) return [];
-      const { data, error } = await supabase
-        .from('stylists')
-        .select('id, name, user_id')
-        .eq('user_id', user.id)
-        .order('name');
-      
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user,
-  });
 
   const colorOptions = [
     { value: "bg-blue-50", label: "Blue", gradient: "linear-gradient(135deg, #3b82f6, #1d4ed8)" },
@@ -75,17 +53,17 @@ const Services = () => {
   ];
 
   const { data: services = [], isLoading } = useQuery<Service[]>({
-    queryKey: ['services'],
-    queryFn: async () => {
+    queryKey: ['services', user?.id],
+    queryFn: async (): Promise<Service[]> => {
       if (!user) return [];
-      const { data, error } = await supabase
+      const { data, error } = await (db
         .from('services')
         .select('*')
         .eq('user_id', user.id)
-        .order('name');
+        .order('name') as any);
       
       if (error) throw error;
-      return data || [];
+      return (data || []) as Service[];
     },
     enabled: !!user,
   });
@@ -95,19 +73,22 @@ const Services = () => {
     if (!user) return;
 
     try {
-      const selectedColor = colorOptions.find(c => c.value === formData.color);
+      const durationNumber = Number(formData.duration);
+      const duration = Number.isFinite(durationNumber) && durationNumber > 0 ? durationNumber : 30;
+      const priceNumber = Number(formData.price);
+      const priceValue = Number.isFinite(priceNumber) && priceNumber >= 0 ? priceNumber : null;
       const serviceData = {
         name: formData.name,
-        duration: formData.duration,
-        price: Number.isFinite(formData.price) ? formData.price : null,
+        duration,
+        price: priceValue,
         color: formData.color,
         text_color: 'text-foreground',
         border_color: 'border-border',
-        user_id: user.id
+        user_id: user.id,
       };
 
       if (editingService) {
-        const { error } = await supabase
+        const { error } = await db
           .from('services')
           .update(serviceData)
           .eq('id', editingService.id);
@@ -115,7 +96,7 @@ const Services = () => {
         if (error) throw error;
         toast({ title: "Service updated successfully!" });
       } else {
-        const { error } = await supabase
+        const { error } = await db
           .from('services')
           .insert([serviceData]);
         
@@ -126,7 +107,7 @@ const Services = () => {
       queryClient.invalidateQueries({ queryKey: ['services'] });
       setIsDialogOpen(false);
       setEditingService(null);
-      setFormData({ name: "", duration: 30, color: "bg-blue-50", price: 0, stylist_id: "" });
+      setFormData({ name: "", duration: 30, color: "bg-blue-50", price: 0 });
     } catch (error) {
       console.error('Error saving service:', error);
       const description =
@@ -147,8 +128,7 @@ const Services = () => {
       name: service.name,
       duration: service.duration,
       color: service.color,
-      price: service.price || 0,
-      stylist_id: service.stylist_id || ""
+      price: service.price || 0
     });
     setIsDialogOpen(true);
   };
@@ -179,7 +159,7 @@ const Services = () => {
   const closeDialog = () => {
     setIsDialogOpen(false);
     setEditingService(null);
-    setFormData({ name: "", duration: 30, color: "bg-blue-50", price: 0, stylist_id: "" });
+    setFormData({ name: "", duration: 30, color: "bg-blue-50", price: 0 });
   };
 
   return (
@@ -253,26 +233,6 @@ const Services = () => {
                           onChange={(e) => setFormData(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
                           placeholder="e.g., 25.00"
                         />
-                      </div>
-
-                      <div className="grid gap-2">
-                        <Label htmlFor="stylist">Stylist (Optional)</Label>
-                        <Select 
-                          value={formData.stylist_id} 
-                          onValueChange={(value) => setFormData(prev => ({ ...prev, stylist_id: value }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a stylist" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="">None</SelectItem>
-                            {stylists.map((stylist) => (
-                              <SelectItem key={stylist.id} value={stylist.id}>
-                                {stylist.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
                       </div>
                       
                       <div className="grid gap-2">

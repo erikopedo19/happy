@@ -17,7 +17,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { OrgSwitcher } from "@/components/OrgSwitcher";
+import { useOrganization } from "@/hooks/use-organization";
 
 const mainItems = [
   {
@@ -78,6 +78,7 @@ export function AppSidebar() {
   const sidebar = useSidebar();
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const { organization } = useOrganization();
 
   const handleSignOut = async () => {
     await signOut();
@@ -88,17 +89,12 @@ export function AppSidebar() {
     ? user.user_metadata.full_name.split(" ").map((n: string) => n[0]).join("").toUpperCase().substring(0, 2)
     : "SC";
 
-  const userName = user?.user_metadata?.full_name || "Barber Shop";
+  const userName = user?.user_metadata?.full_name || "";
+  const orgDisplayName = organization?.name || organization?.slug || organization?.id || "";
+  const orgInitial = orgDisplayName.slice(0, 1).toUpperCase();
 
-  const renderMenuGroup = (title: string, items: typeof mainItems) => (
-    <SidebarGroup className="mb-2">
-      {sidebar.state !== "collapsed" && title && (
-        <div className="px-3 mb-2">
-          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            {title}
-          </h3>
-        </div>
-      )}
+  const renderMenu = (items: typeof mainItems) => (
+    <SidebarGroup className="mt-4">
       <SidebarGroupContent>
         <SidebarMenu className="space-y-1">
           {items.map((item) => {
@@ -108,9 +104,9 @@ export function AppSidebar() {
                 <SidebarMenuButton
                   asChild
                   className={`
-                    group relative w-full justify-start px-3 py-2.5 rounded-xl transition-all duration-200 
+                    group relative w-full justify-start px-3 py-2 rounded-md transition-all duration-200 
                     ${isActive
-                      ? 'bg-sidebar-ring text-sidebar-primary-foreground shadow-md'
+                      ? 'bg-sidebar-ring/80 text-white'
                       : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                     }
                   `}
@@ -138,29 +134,39 @@ export function AppSidebar() {
       collapsible="icon"
     >
       <SidebarHeader className="p-2 border-b border-sidebar-border">
-        <OrgSwitcher collapsed={sidebar.state === "collapsed"} />
-        {isMobile && <SidebarTrigger className="lg:hidden mt-2" />}
+        {isMobile && <SidebarTrigger className="lg:hidden mb-2" />}
+        {sidebar.state !== "collapsed" && (
+          <div className="px-2 py-2 rounded-md bg-sidebar-accent/50 border border-sidebar-border transition-all duration-200 flex items-center gap-2 min-h-[42px]">
+            <div className="h-7 w-7 rounded-sm bg-emerald-500/90 text-white text-xs font-semibold flex items-center justify-center shrink-0">
+              {orgInitial}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="h-8 px-2 rounded-md bg-transparent text-sm font-semibold text-foreground flex items-center truncate">
+                {orgDisplayName ?? "Workspace"}
+              </div>
+            </div>
+          </div>
+        )}
       </SidebarHeader>
 
-      <SidebarContent className="p-2 space-y-2">
-        {renderMenuGroup("Menu", mainItems)}
-        {renderMenuGroup("System", settingsItems)}
+      <SidebarContent className="p-3 space-y-2">
+        {renderMenu(mainItems)}
       </SidebarContent>
 
-      <SidebarFooter className="p-4 border-t border-sidebar-border">
+      <SidebarFooter className="px-3 py-3 border-t border-sidebar-border">
         {sidebar.state !== "collapsed" ? (
-          <div className="space-y-3">
-            <div className="flex items-center gap-3 p-2 rounded-lg bg-blue-50/30 border border-blue-100">
-              <Avatar className="h-10 w-10 border-2 border-blue-100">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2 p-2 rounded-md bg-sidebar-accent/40 border border-sidebar-border">
+              <Avatar className="h-7 w-7 border border-sidebar-border">
                 <AvatarImage src={user?.user_metadata?.avatar_url} />
-                <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
+                <AvatarFallback className="bg-sidebar-ring/80 text-white font-semibold">
                   {userInitials}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 overflow-hidden">
-                <p className="font-medium text-sm text-gray-900 truncate">{userName}</p>
+                {userName && <p className="font-medium text-sm text-foreground truncate">{userName}</p>}
                 {user?.email && (
-                  <div className="flex items-center gap-1 text-xs text-blue-600">
+                  <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
                     <Mail className="h-3 w-3" />
                     <span className="truncate">{user.email}</span>
                   </div>
@@ -169,7 +175,7 @@ export function AppSidebar() {
             </div>
             <Button
               variant="ghost"
-              className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50"
+              className="w-full justify-start text-red-400 hover:text-red-500 hover:bg-red-50/10 h-8 rounded-md"
               onClick={handleSignOut}
             >
               <LogOut className="w-4 h-4 mr-2" />

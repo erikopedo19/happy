@@ -19,6 +19,7 @@ const appointmentSchema = z.object({
   service_id: z.string().min(1, "Please select a service"),
   price: z.string().optional(),
   notes: z.string().optional(),
+  stylist_id: z.string().optional(),
 }).refine(data => data.customer_id || data.customer_name, {
   message: "Please select a customer or enter a new customer name",
   path: ["customer_id"],
@@ -46,6 +47,7 @@ export function AppointmentForm({ isOpen, onClose, selectedDate, selectedTime }:
       service_id: "",
       price: "",
       notes: "",
+      stylist_id: "",
     },
   });
 
@@ -80,6 +82,21 @@ export function AppointmentForm({ isOpen, onClose, selectedDate, selectedTime }:
     enabled: !!user,
   });
 
+  // Fetch stylists
+  const { data: stylists = [] } = useQuery({
+    queryKey: ['stylists-for-appointments', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from('stylists')
+        .select('id, name, title')
+        .eq('user_id', user.id);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user,
+  });
+
   const onSubmit = async (values: z.infer<typeof appointmentSchema>) => {
     if (!user) {
       toast({
@@ -109,8 +126,8 @@ export function AppointmentForm({ isOpen, onClose, selectedDate, selectedTime }:
         customerId = newCustomer.id;
       }
 
-      const { error } = await supabase
-        .from('appointments')
+      const { error } = await (supabase
+        .from('appointments') as any)
         .insert({
           customer_id: customerId,
           service_id: values.service_id,
@@ -120,6 +137,7 @@ export function AppointmentForm({ isOpen, onClose, selectedDate, selectedTime }:
           notes: values.notes,
           status: 'scheduled',
           user_id: user.id,
+          stylist_id: values.stylist_id || null,
         });
 
       if (error) throw error;
@@ -292,6 +310,31 @@ export function AppointmentForm({ isOpen, onClose, selectedDate, selectedTime }:
                       {services.map((service) => (
                         <SelectItem key={service.id} value={service.id}>
                           {service.name} ({service.duration}min)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="stylist_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Stylist (optional)</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a stylist" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {stylists.map((stylist) => (
+                        <SelectItem key={stylist.id} value={stylist.id}>
+                          {stylist.name} {stylist.title ? `• ${stylist.title}` : ""}
                         </SelectItem>
                       ))}
                     </SelectContent>

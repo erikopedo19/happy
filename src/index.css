@@ -120,6 +120,69 @@
 }
 
 @layer utilities {
+  /* Splash screen styling */
+  .splash-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: grid;
+    place-items: center;
+    background: radial-gradient(circle at 20% 20%, hsl(var(--muted) / 0.6), transparent 40%),
+      radial-gradient(circle at 80% 30%, hsl(var(--accent) / 0.25), transparent 35%),
+      hsl(var(--background));
+    overflow: hidden;
+  }
+
+  .splash-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, hsl(var(--background)), hsl(var(--background) / 0.8));
+  }
+
+  .splash-content {
+    position: relative;
+    width: min(360px, 60vw);
+    aspect-ratio: 1;
+    display: grid;
+    place-items: center;
+    filter: drop-shadow(0 20px 60px rgba(0, 0, 0, 0.35));
+  }
+
+  .splash-logo {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    animation: splash-pop 0.7s ease forwards;
+    opacity: 0;
+  }
+
+  .splash-wipe {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.08) 20%,
+      rgba(255, 255, 255, 0.2) 50%,
+      rgba(255, 255, 255, 0.08) 80%,
+      transparent 100%);
+    transform: translateX(-100%);
+    animation: splash-wipe 1.4s ease forwards 0.4s;
+    pointer-events: none;
+  }
+
+  @keyframes splash-pop {
+    0% { transform: scale(0.9); opacity: 0; }
+    60% { transform: scale(1.02); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  @keyframes splash-wipe {
+    0% { transform: translateX(-120%); opacity: 0; }
+    20% { opacity: 1; }
+    70% { transform: translateX(10%); opacity: 1; }
+    100% { transform: translateX(120%); opacity: 0; }
+  }
+
   .glass-heading {
     font-family: 'SF Pro Display', 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Helvetica', 'Arial', sans-serif;
     font-weight: 300;
