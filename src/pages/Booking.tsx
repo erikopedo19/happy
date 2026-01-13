@@ -249,14 +249,14 @@ const Booking = () => {
       console.log('Fetching appointments for date:', dateStr);
       
       const { data, error } = await (supabase
-        .from('appointments')
+        .from('appointments') as any)
         .select(`
           *,
           service:services(*)
         `)
         .eq('user_id', businessProfile.id)
         .eq('appointment_date', dateStr)
-        .eq('stylist_id', selectedStylistId) as any);
+        .eq('stylist_id', selectedStylistId);
       
       console.log('Appointments query result:', { data, error });
       
