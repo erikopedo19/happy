@@ -7,9 +7,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from 'date-fns';
 import ModernBookingForm from "@/components/ModernBookingForm";
+import Stylists from "./Stylists";
 
 const bookingSchema = z.object({
   customer_name: z.string().min(1, "Name is required"),
@@ -76,6 +77,7 @@ const Booking = () => {
   const [emailTheme, setEmailTheme] = useState<"default" | "minimal" | "festive">("default");
   const [accentColor, setAccentColor] = useState<string>("#1a1a1a");
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   console.log('Booking component loaded with bookingLink:', bookingLink);
 
@@ -107,7 +109,7 @@ const Booking = () => {
         throw error;
       }
       
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .rpc('get_public_profile_by_booking_link', { _booking_link: bookingLink });
 
       console.log('Business profile RPC result:', { data, error });
@@ -154,9 +156,9 @@ const Booking = () => {
     queryFn: async () => {
       if (!businessProfile?.id) return [];
 
-      const { data, error } = await supabase
-        .from('stylists')
-        .select('id, name, avatar_url, title')
+      const { data, error } = await (supabase
+        .from('stylists' as any)
+        .select('id, name, avatar_url, title') as any)
         .eq('user_id', businessProfile.id)
         .eq('is_public', true);
 
@@ -176,9 +178,9 @@ const Booking = () => {
       if (!businessProfile?.id) return [];
       
       console.log('Fetching services for business:', businessProfile.id);
-      const { data, error } = await supabase
-        .from('services')
-        .select('*')
+      const { data, error } = await (supabase
+        .from('services' as any)
+        .select('*') as any)
         .eq('user_id', businessProfile.id)
         .order('name');
       
@@ -215,9 +217,9 @@ const Booking = () => {
       if (!businessProfile?.id) return null;
       
       console.log('Fetching agenda settings for business:', businessProfile.id);
-      const { data, error } = await supabase
-        .from('agenda_settings')
-        .select('*')
+      const { data, error } = await (supabase
+        .from('agenda_settings' as any)
+        .select('*') as any)
         .eq('user_id', businessProfile.id)
         .maybeSingle();
       
@@ -314,7 +316,7 @@ const Booking = () => {
     try {
       const selectedServiceId = form.watch("service_id");
       const stylistId = selectedStylistId;
-      if (!selectedServiceId || !stylistId) return false;
+      if (!selectedServiceId) return false;
       
       const selectedService = services.find(s => s.id === selectedServiceId);
       if (!selectedService) return false;
@@ -328,10 +330,129 @@ const Booking = () => {
         const checkTime = timeSlots[startSlotIndex + i];
         if (!checkTime) return false;
         
+        // If no stylist selected yet, check if ANY stylist is available at this time
+        // If stylist selected, only check availability for that specific stylist
         const isOccupied = existingAppointments.some(apt => {
-          if (!apt.service) return false; // Skip if service is missing
-          const matchesStylist = apt.stylist_id ? apt.stylist_id === stylistId : false;
-          if (!matchesStylist) return false;
+          if (!apt.service) return false;
+          const aptTime = apt.appointment_time?.substring(0, 5);
+          if (!aptTime) return false;
+          const aptDuration = apt.service.duration;
+          const aptSlotsNeeded = Math.ceil(aptDuration / slotInterval);
+          const aptStartIndex = timeSlots.indexOf(aptTime);
+          const checkIndex = timeSlots.indexOf(checkTime);
+          
+          // If checking for specific stylist
+          if (stylistId) {
+            const matchesStylist = apt.stylist_id ? apt.stylist_id === stylistId : false;
+            if (!matchesStylist) return false; // Different stylist, doesn't affect this slot
+          }
+          
+          // Check if the appointment overlaps with this time slot
+          return checkIndex >= aptStartIndex && checkIndex < aptStartIndex + aptSlotsNeeded;
+        });
+        
+        if (isOccupied) return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error checking time slot availability:', error);
+      return false;
+    }
+  };
+
+  const getAvailableStylistsForTime = (selectedTime: string) => {
+    if (!selectedTime) return [];
+    
+    const selectedServiceId = form.watch("service_id");
+    if (!selectedServiceId) return [];
+    
+    const selectedService = services.find(s => s.id === selectedServiceId);
+    if (!selectedService) return [];
+
+    const slotInterval = settings?.service_duration || 30;
+    const slotsNeeded = Math.ceil(selectedService.duration / slotInterval);
+    const startSlotIndex = timeSlots.indexOf(selectedTime);
+    
+    return stylists.filter(stylist => {
+      // Check if this stylist has all required slots free
+      for (let i = 0; i < slotsNeeded; i++) {
+        const checkTime = timeSlots[startSlotIndex + i];
+        if (!checkTime) return false;
+        
+        const isOccupied = existingAppointments.some(apt => {
+          if (!apt.service) return false;
+          const aptTime = apt.appointment_time?.substring(0, 5);
+          if (!aptTime) return false;
+          const aptDuration = apt.service.duration;
+          const aptSlotsNeeded = Math.ceil(aptDuration / slotInterval);
+          const aptStartIndex = timeSlots.indexOf(aptTime);
+          const checkIndex = timeSlots.indexOf(checkTime);
+          
+          // Check if appointment overlaps and is for this stylist
+          return checkIndex >= aptStartIndex && checkIndex < aptStartIndex + aptSlotsNeeded && 
+                 apt.stylist_id === stylist.id;
+        });
+        
+        if (isOccupied) return false;
+      }
+      
+      return true;
+    });
+  };
+
+  const getAvailableDatesForStylist = (stylistId: string) => {
+    const today = new Date();
+    const availableDates = [];
+    
+    // Check next 30 days
+    for (let i = 0; i < 30; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      
+      // Check if it's a working day
+      const dayOfWeek = date.getDay();
+      if (!settings?.working_days?.includes(dayOfWeek)) {
+        continue;
+      }
+      
+      // Check if there's at least one free slot for this stylist
+      const hasFreeSlot = timeSlots.some(time => {
+        return !existingAppointments.some(apt => 
+          apt.stylist_id === stylistId && 
+          apt.appointment_time?.substring(0, 5) === time
+        );
+      });
+      
+      if (hasFreeSlot) {
+        availableDates.push(date);
+      }
+    }
+    
+    return availableDates;
+  };
+
+  const getAvailableTimesForStylistAndDate = (stylistId: string, date: Date) => {
+    if (!stylistId || !date) return [];
+    
+    const selectedServiceId = form.watch("service_id");
+    if (!selectedServiceId) return [];
+    
+    const selectedService = services.find(s => s.id === selectedServiceId);
+    if (!selectedService) return [];
+
+    const slotInterval = settings?.service_duration || 30;
+    const slotsNeeded = Math.ceil(selectedService.duration / slotInterval);
+    
+    return timeSlots.filter(time => {
+      // Check if this stylist has all required slots free
+      for (let i = 0; i < slotsNeeded; i++) {
+        const timeIndex = timeSlots.indexOf(time);
+        const checkTime = timeSlots[timeIndex + i];
+        if (!checkTime) return false;
+        
+        const isOccupied = existingAppointments.some(apt => {
+          if (!apt.service || apt.stylist_id !== stylistId) return false;
           const aptTime = apt.appointment_time?.substring(0, 5);
           if (!aptTime) return false;
           const aptDuration = apt.service.duration;
@@ -346,10 +467,7 @@ const Booking = () => {
       }
       
       return true;
-    } catch (error) {
-      console.error('Error checking time slot availability:', error);
-      return false;
-    }
+    });
   };
 
   const onSubmit = async (values: z.infer<typeof bookingSchema>) => {
@@ -391,9 +509,9 @@ const Booking = () => {
       }
 
       // First, check if customer already exists for this business owner and email
-      const { data: existingCustomers, error: searchError } = await supabase
-        .from('customers')
-        .select('*')
+      const { data: existingCustomers, error: searchError } = await (supabase
+        .from('customers' as any)
+        .select('*') as any)
         .eq('user_id', businessProfile.id)
         .eq('email', values.customer_email)
         .limit(1);
@@ -410,7 +528,7 @@ const Booking = () => {
         console.log('Using existing customer:', customer);
         
         // Optionally update customer info if it has changed
-        const { data: updatedCustomer, error: updateError } = await supabase
+        const { data: updatedCustomer, error: updateError } = await (supabase as any)
           .from('customers')
           .update({
             name: values.customer_name,
@@ -432,7 +550,7 @@ const Booking = () => {
           user_id: businessProfile.id, // associate customer with business owner
         };
 
-        const { data: newCustomer, error: customerError } = await supabase
+        const { data: newCustomer, error: customerError } = await (supabase as any)
           .from('customers')
           .insert(customerData)
           .select()
@@ -454,7 +572,7 @@ const Booking = () => {
       }
 
       // Create appointment with the business owner's user_id
-      const { data: newAppointment, error: appointmentError } = await supabase
+      const { data: newAppointment, error: appointmentError } = await (supabase as any)
         .from('appointments')
         .insert({
           customer_id: customer.id,
@@ -464,7 +582,7 @@ const Booking = () => {
           appointment_time: selectedTime,
           notes: values.notes || null,
           status: 'scheduled',
-          user_id: businessProfile.id, // This is the business owner's ID
+          user_id: businessProfile.id,
         })
         .select()
         .single();
@@ -486,7 +604,7 @@ const Booking = () => {
       try {
         const selectedService = services.find(s => s.id === values.service_id);
         const selectedStylist = stylists.find(s => s.id === values.stylist_id);
-        const { data: emailData, error: emailError } = await supabase.functions.invoke('send-booking-confirmation', {
+        const { data: emailData, error: emailError } = await (supabase as any).functions.invoke('send-booking-confirmation', {
           body: {
             customerEmail: values.customer_email,
             customerName: values.customer_name,
@@ -521,6 +639,9 @@ const Booking = () => {
         title: "Booking Confirmed!",
         description: "Your appointment has been scheduled successfully. Check your email for confirmation.",
       });
+
+      // Invalidate appointments cache to refresh agenda
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
 
       form.reset();
       setSelectedTime("");
@@ -611,7 +732,12 @@ const Booking = () => {
           </div>
         </div>
       </div>
-    );
+   );
+         //if no stylists 
+  { if (stylists.length === 0) return <p>Δεν βρέθηκαν στυλίστες</p>;
+return stylists.map(s => <Stylists key={s.id} data={s} />);
+
+  }
   }
 
   // Show warning if no services available
@@ -650,12 +776,17 @@ const Booking = () => {
     <ModernBookingForm
       form={form}
       services={services || []}
+      stylists={stylists}
+      existingAppointments={existingAppointments}
       selectedDate={selectedDate}
       setSelectedDate={setSelectedDate}
       selectedTime={selectedTime}
       setSelectedTime={setSelectedTime}
       timeSlots={timeSlots}
       isTimeSlotAvailable={isTimeSlotAvailable}
+      getAvailableStylistsForTime={getAvailableStylistsForTime}
+      getAvailableDatesForStylist={getAvailableDatesForStylist}
+      getAvailableTimesForStylistAndDate={getAvailableTimesForStylistAndDate}
       onSubmit={onSubmit}
       isLoading={isLoading}
       businessProfile={businessProfile}

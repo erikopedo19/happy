@@ -27,13 +27,13 @@ export function useOrganization() {
     if (!user) return;
     const { data: existing } = await (supabase
       .from("memberships" as any)
-      .select("id")
+      .select("id") as any)
       .eq("org_id", orgId)
       .eq("user_id", user.id)
-      .maybeSingle() as any);
+      .maybeSingle();
 
     if (!existing) {
-      await supabase.from("memberships" as any).insert({
+      await (supabase.from("memberships" as any) as any).insert({
         org_id: orgId,
         user_id: user.id,
         role: "owner",
@@ -45,15 +45,15 @@ export function useOrganization() {
     if (!user) return null;
     const baseSlug = `org-${user.id.slice(0, 8)}`;
     const slug = `${baseSlug}-${Date.now()}`;
-    const { data, error } = await (supabase
-      .from("organizations" as any)
+    const { data, error } = await ((supabase as any)
+      .from("organizations")
       .insert({
         name: "My Barbershop",
         slug,
         created_by: user.id,
       })
       .select("*")
-      .single() as any);
+      .single());
 
     if (error) {
       console.error("Error creating organization:", error);
@@ -75,11 +75,11 @@ export function useOrganization() {
       try {
         // First try to find an organization owned by the user
         // Cast to any to avoid type errors if types aren't generated yet
-        const { data: ownedOrgs } = await (supabase
-          .from("organizations" as any)
+        const { data: ownedOrgs, error: orgError } = await ((supabase as any)
+          .from("organizations")
           .select("*")
           .eq("created_by", user.id)
-          .single() as any);
+          .maybeSingle());
 
         if (ownedOrgs) {
           setOrganization(ownedOrgs);
@@ -92,11 +92,11 @@ export function useOrganization() {
           await ensureMembership(ownedOrgs.id);
         } else {
           // If not owner, check memberships
-          const { data: memberships } = await (supabase
-            .from("memberships" as any)
+          const { data: memberships } = await ((supabase as any)
+            .from("memberships")
             .select("*, organization:organizations(*)")
             .eq("user_id", user.id)
-            .maybeSingle() as any);
+            .maybeSingle());
 
           if (memberships && memberships.organization) {
             setOrganization(memberships.organization);

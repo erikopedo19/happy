@@ -13,6 +13,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { TimeInput } from "@heroui/react";
+import { Time } from "@internationalized/date";
 
 const serviceDurationOptions = [10, 15, 20, 25, 30, 45, 60, 90];
 
@@ -28,13 +30,13 @@ const Settings = () => {
     queryKey: ['agenda_settings', user?.id],
     queryFn: async () => {
       if (!user) return null;
-      const { data, error } = await supabase
-        .from('agenda_settings')
-        .select('service_duration, start_hour, end_hour')
+      const { data, error } = await (supabase
+        .from('agenda_settings' as any)
+        .select('service_duration, start_hour, end_hour') as any)
         .eq('user_id', user.id)
         .single();
 
-      if (error && error.code !== 'PGRST116') {
+      if (error && (error as any).code !== 'PGRST116') {
         console.error('Error fetching settings:', error);
         throw error;
       }
@@ -54,7 +56,7 @@ const Settings = () => {
   const { mutate: saveSettings, isPending: isSaving } = useMutation({
     mutationFn: async (newSettings: { service_duration: number; start_hour: string; end_hour: string }) => {
       if (!user) throw new Error("User not found");
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('agenda_settings')
         .update(newSettings)
         .eq('user_id', user.id);
@@ -168,11 +170,11 @@ const Settings = () => {
                       <Label htmlFor="startHour" className="text-sm font-medium text-gray-700">
                         Start Time
                       </Label>
-                      <Input
+                      <TimeInput
                         id="startHour"
-                        type="time"
-                        value={startHour}
-                        onChange={(e) => setStartHour(e.target.value)}
+                        label="Start Time"
+                        value={startHour ? new Time(parseInt(startHour.split(':')[0]), parseInt(startHour.split(':')[1] || '0')) : undefined}
+                        onChange={(time) => setStartHour(time ? `${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}` : '')}
                         className="mt-1"
                       />
                     </div>
@@ -180,11 +182,11 @@ const Settings = () => {
                       <Label htmlFor="endHour" className="text-sm font-medium text-gray-700">
                         End Time
                       </Label>
-                      <Input
+                      <TimeInput
                         id="endHour"
-                        type="time"
-                        value={endHour}
-                        onChange={(e) => setEndHour(e.target.value)}
+                        label="End Time"
+                        value={endHour ? new Time(parseInt(endHour.split(':')[0]), parseInt(endHour.split(':')[1] || '0')) : undefined}
+                        onChange={(time) => setEndHour(time ? `${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}` : '')}
                         className="mt-1"
                       />
                     </div>

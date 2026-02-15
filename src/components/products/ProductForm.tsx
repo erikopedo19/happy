@@ -19,7 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
+import { Switch } from "@heroui/react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -84,16 +84,16 @@ export const ProductForm = ({
       };
 
       if (product) {
-        const { error } = await supabase
-          .from("products")
+        const { error } = await (supabase as any)
+          .from('products')
           .update(productData)
-          .eq("id", product.id);
+          .eq('id', product.id);
         
         if (error) throw error;
-        toast({ title: "Product updated successfully" });
+        toast({ title: 'Product updated successfully' });
       } else {
-        const { error } = await supabase
-          .from("products")
+        const { error } = await (supabase as any)
+          .from('products')
           .insert([productData]);
         
         if (error) throw error;
@@ -249,9 +249,11 @@ export const ProductForm = ({
                   </div>
                   <FormControl>
                     <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
+                      isSelected={field.value}
+                      onValueChange={field.onChange}
+                    >
+                      Active Product
+                    </Switch>
                   </FormControl>
                 </FormItem>
               )}

@@ -32,6 +32,7 @@ interface ModernBookingFormProps {
   setSelectedTime: (time: string) => void;
   timeSlots: string[];
   isTimeSlotAvailable: (time: string) => boolean;
+  getAvailableStylistsForTime?: (time: string) => any[];
   onSubmit: (values: any) => Promise<boolean | void>;
   isLoading: boolean;
   businessProfile: {
@@ -52,6 +53,7 @@ const ModernBookingForm = ({
   setSelectedTime,
   timeSlots,
   isTimeSlotAvailable,
+  getAvailableStylistsForTime,
   onSubmit,
   isLoading,
   businessProfile,
@@ -253,22 +255,32 @@ const ModernBookingForm = ({
                           {selectedDate ? format(selectedDate, 'EEEE d MMMM') : 'Επιλέξτε ημερομηνία'}
                         </div>
                         <div className="grid grid-cols-2 gap-2 overflow-y-auto pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] flex-1 content-start">
-                          {timeSlots.filter(time => isTimeSlotAvailable(time)).map((time) => (
-                            <Button
-                              key={time}
-                              variant="outline"
-                              onClick={() => handleTimeSelect(time)}
-                              style={selectedTime === time ? { backgroundColor: brandColor, borderColor: brandColor } : {}}
-                              className={cn(
-                                "w-full justify-center text-xs font-medium h-9 rounded-full border transition-all duration-200",
-                                selectedTime === time
-                                  ? "text-black hover:opacity-90 hover:text-black"
-                                  : "bg-transparent border-gray-700 text-gray-300 hover:border-gray-500 hover:text-white hover:bg-gray-800"
-                              )}
-                            >
-                              {time}
-                            </Button>
-                          ))}
+                          {timeSlots.filter(time => isTimeSlotAvailable(time)).map((time) => {
+                            const availableStylists = getAvailableStylistsForTime ? getAvailableStylistsForTime(time) : [];
+                            
+                            return (
+                              <div key={time} className="space-y-1">
+                                <Button
+                                  variant="outline"
+                                  onClick={() => handleTimeSelect(time)}
+                                  style={selectedTime === time ? { backgroundColor: brandColor, borderColor: brandColor } : {}}
+                                  className={cn(
+                                    "w-full justify-center text-xs font-medium h-9 rounded-full border transition-all duration-200",
+                                    selectedTime === time
+                                      ? "text-black hover:opacity-90 hover:text-black"
+                                      : "bg-transparent border-gray-700 text-gray-300 hover:border-gray-500 hover:text-white hover:bg-gray-800"
+                                  )}
+                                >
+                                  {time}
+                                </Button>
+                                {selectedTime === time && availableStylists.length > 0 && (
+                                  <div className="text-xs text-gray-400 px-2">
+                                    {availableStylists.length} stylist{availableStylists.length > 1 ? 's' : ''} available
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                           {selectedDate && timeSlots.filter(time => isTimeSlotAvailable(time)).length === 0 && (
                             <div className="col-span-2 text-center text-gray-500 py-4 text-sm">
                               Δεν υπάρχουν διαθέσιμα ραντεβού

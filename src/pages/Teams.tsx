@@ -100,10 +100,11 @@ const Teams = () => {
       if (!user) return [];
       try {
         const userId = user.id;
-        const { data, error } = await supabase
+        const result = await (db
           .from("stylists")
-          .select("id, name, avatar_url, title")
+          .select("id, name, avatar_url, title") as any)
           .eq("user_id", userId);
+        const { data, error } = result as any;
         
         if (error) {
           console.error("Error fetching stylists:", error.message);
@@ -145,6 +146,7 @@ const Teams = () => {
         if (!userId) throw new Error("User ID not available");
         const { error } = await (db.from("teams" as any) as any).insert({
           user_id: userId,
+          org_id: organization?.id,
           name: data.name,
           description: data.description,
           color: data.color,
@@ -157,6 +159,7 @@ const Teams = () => {
           
           const { error: fallbackError } = await (db.from("teams" as any) as any).insert({
             user_id: userId,
+            org_id: organization?.id,
             name: data.name,
             description: data.description,
             color: data.color,
