@@ -8,10 +8,34 @@ const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: {
-    storage: localStorage,
-    persistSession: true,
-    autoRefreshToken: true,
+export const supabase = (() => {
+  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+    // Return a minimal stub that won't crash the app
+    console.warn(
+      'Supabase env vars are missing. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY to enable auth/data features.'
+    );
+    return {
+      auth: {
+        onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+        getSession: () => Promise.resolve({ data: { session: null }, error: null }),
+        signInWithPassword: () => Promise.resolve({ error: { message: 'Supabase not configured' } }),
+        signUp: () => Promise.resolve({ error: { message: 'Supabase not configured' } }),
+        signOut: () => Promise.resolve({ error: null }),
+        user: null,
+        session: null,
+      },
+      from: () => ({
+        select: () => ({
+          eq: () => ({ single: () => Promise.resolve({ data: null, error: { message: 'Supabase not configured' } }) })
+        })
+      }),
+    };
   }
-});
+  return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    auth: {
+      storage: localStorage,
+      persistSession: true,
+      autoRefreshToken: true,
+    }
+  });
+})();
