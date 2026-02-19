@@ -22,6 +22,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
 
+const db = supabase as any;
+
 type AppointmentStatus = "scheduled" | "completed" | "cancelled" | "pending" | "confirmed" | string;
 
 interface AppointmentRow {
@@ -41,7 +43,7 @@ export function AppointmentsTable() {
         queryKey: ["dashboard_appointments", user?.id],
         queryFn: async () => {
             if (!user) return [];
-            const { data, error } = await supabase
+            const { data, error } = await db
                 .from("appointments")
                 .select(`id, appointment_date, appointment_time, status, price, customer:customers(name), service:services(name)`)
                 .eq("user_id", user.id)

@@ -17,7 +17,6 @@ const appointmentSchema = z.object({
   customer_id: z.string().optional(),
   customer_name: z.string().optional(),
   service_id: z.string().min(1, "Please select a service"),
-  price: z.string().optional(),
   notes: z.string().optional(),
   stylist_id: z.string().optional(),
 }).refine(data => data.customer_id || data.customer_name, {
@@ -45,7 +44,6 @@ export function AppointmentForm({ isOpen, onClose, selectedDate, selectedTime }:
       customer_id: "",
       customer_name: "",
       service_id: "",
-      price: "",
       notes: "",
       stylist_id: "",
     },
@@ -55,7 +53,7 @@ export function AppointmentForm({ isOpen, onClose, selectedDate, selectedTime }:
   const { data: customers = [] } = useQuery({
     queryKey: ['customers'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('customers')
         .select('*')
         .order('name');
@@ -70,7 +68,7 @@ export function AppointmentForm({ isOpen, onClose, selectedDate, selectedTime }:
     queryKey: ['services'],
     queryFn: async () => {
       if (!user) return [];
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('services')
         .select('*')
         .eq('user_id', user.id)
@@ -87,10 +85,11 @@ export function AppointmentForm({ isOpen, onClose, selectedDate, selectedTime }:
     queryKey: ['stylists-for-appointments', user?.id],
     queryFn: async () => {
       if (!user) return [];
-      const { data, error } = await supabase
+      const result = await (supabase as any)
         .from('stylists')
         .select('id, name, title')
         .eq('user_id', user.id);
+      const { data, error } = result;
       if (error) throw error;
       return data || [];
     },
@@ -113,7 +112,7 @@ export function AppointmentForm({ isOpen, onClose, selectedDate, selectedTime }:
 
       // If creating a new customer, create them first
       if (isNewCustomer && values.customer_name) {
-        const { data: newCustomer, error: customerError } = await supabase
+        const result = await (supabase as any)
           .from('customers')
           .insert({
             name: values.customer_name,
@@ -121,10 +120,14 @@ export function AppointmentForm({ isOpen, onClose, selectedDate, selectedTime }:
           })
           .select()
           .single();
+        const { data: newCustomer, error: customerError } = result;
 
         if (customerError) throw customerError;
         customerId = newCustomer.id;
       }
+
+      const selectedService = services.find(s => s.id === values.service_id);
+      const servicePrice = selectedService?.price || 0;
 
       const { error } = await (supabase
         .from('appointments') as any)
@@ -133,7 +136,7 @@ export function AppointmentForm({ isOpen, onClose, selectedDate, selectedTime }:
           service_id: values.service_id,
           appointment_date: selectedDate,
           appointment_time: selectedTime,
-          price: values.price ? parseFloat(values.price) : null,
+          price: servicePrice,
           notes: values.notes,
           status: 'scheduled',
           user_id: user.id,
@@ -153,7 +156,7 @@ export function AppointmentForm({ isOpen, onClose, selectedDate, selectedTime }:
           .single();
 
         if (customer?.email && service) {
-          const { error: emailError } = await supabase.functions.invoke('send-booking-confirmation', {
+          const { error: emailError } = await (supabase as any).functions.invoke('send-booking-confirmation', {
             body: {
               customerEmail: customer.email,
               customerName: customer.name,
@@ -166,7 +169,7 @@ export function AppointmentForm({ isOpen, onClose, selectedDate, selectedTime }:
                 day: 'numeric' 
               }),
               appointmentTime: selectedTime,
-              price: values.price ? parseFloat(values.price) : service.price,
+              price: servicePrice,
               notes: values.notes,
             },
           });
@@ -339,25 +342,6 @@ export function AppointmentForm({ isOpen, onClose, selectedDate, selectedTime }:
                       ))}
                     </SelectContent>
                   </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="price"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Price (optional)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      {...field}
-                    />
-                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

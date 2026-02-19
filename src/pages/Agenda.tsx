@@ -56,11 +56,12 @@ const Agenda = () => {
     queryKey: ['services'],
     queryFn: async () => {
       if (!user) return [];
-      const { data, error } = await supabase
+      const result = await (supabase as any)
         .from('services')
         .select('*')
         .eq('user_id', user.id)
         .order('name');
+      const { data, error } = result;
       
       if (error) throw error;
       return data || [];
@@ -73,7 +74,7 @@ const Agenda = () => {
     queryKey: ['appointments', format(fetchStartDate, 'yyyy-MM-dd'), format(fetchEndDate, 'yyyy-MM-dd')],
     queryFn: async () => {
       if (!user) return [];
-      const { data, error } = await supabase
+      const result = await (supabase as any)
         .from('appointments')
         .select(`
           *,
@@ -85,6 +86,7 @@ const Agenda = () => {
         .lte('appointment_date', format(fetchEndDate, 'yyyy-MM-dd'))
         .order('appointment_date', { ascending: true })
         .order('appointment_time', { ascending: true });
+      const { data, error } = result;
 
       if (error) {
         console.error('Error fetching appointments:', error);
@@ -115,7 +117,7 @@ const Agenda = () => {
   useEffect(() => {
     if (!user) return;
 
-    const channel = supabase
+    const channel = (supabase as any)
       .channel('appointments-changes')
       .on(
         'postgres_changes',
@@ -140,7 +142,7 @@ const Agenda = () => {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      (supabase as any).removeChannel(channel);
     };
   }, [user, toast, queryClient]);
 

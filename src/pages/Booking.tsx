@@ -271,7 +271,23 @@ const Booking = () => {
     enabled: !!businessProfile?.id && !!selectedDate && !!selectedStylistId,
   });
 
-  // Generate time slots
+  // Fetch stylist-service relationships
+  const { data: stylistServices = [] } = useQuery<{ stylist_id: string; service_id: string }[]>({
+    queryKey: ['stylist-services', businessProfile?.id],
+    queryFn: async () => {
+      if (!businessProfile?.id) return [];
+      const { data, error } = await (supabase
+        .from('stylist_services' as any)
+        .select('stylist_id, service_id') as any)
+        .eq('user_id', businessProfile.id);
+      if (error) {
+        console.error('Error fetching stylist services:', error);
+        return [];
+      }
+      return data || [];
+    },
+    enabled: !!businessProfile?.id,
+  });
   const generateTimeSlots = (startHour: string, endHour: string, interval: number = 30) => {
     const slots = [];
     const start = parseInt(startHour.split(':')[0]);
@@ -733,11 +749,6 @@ const Booking = () => {
         </div>
       </div>
    );
-         //if no stylists 
-  { if (stylists.length === 0) return <p>Δεν βρέθηκαν στυλίστες</p>;
-return stylists.map(s => <Stylists key={s.id} data={s} />);
-
-  }
   }
 
   // Show warning if no services available
@@ -777,6 +788,7 @@ return stylists.map(s => <Stylists key={s.id} data={s} />);
       form={form}
       services={services || []}
       stylists={stylists}
+      stylistServices={stylistServices}
       existingAppointments={existingAppointments}
       selectedDate={selectedDate}
       setSelectedDate={setSelectedDate}

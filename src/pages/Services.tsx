@@ -11,9 +11,26 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Edit, Trash2, Clock, Palette } from "lucide-react";
+import { Plus, Edit, Trash2, Clock, Palette, AlertTriangle, Calendar } from "lucide-react";
+import { IconPicker, getIconByName } from "@/components/IconPicker";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 const db = supabase as any;
+
+interface Appointment {
+  id: string;
+  service_id: string;
+  status: string;
+}
 
 interface Service {
   id: string;
@@ -24,6 +41,7 @@ interface Service {
   border_color: string;
   user_id: string;
   price?: number;
+  icon?: string;
 }
 
 const Services = () => {
@@ -33,8 +51,11 @@ const Services = () => {
     name: "",
     duration: 30,
     color: "bg-blue-50",
-    price: 0
+    price: 0,
+    icon: "Scissors"
   });
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [serviceToDelete, setServiceToDelete] = useState<string | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -68,6 +89,25 @@ const Services = () => {
     enabled: !!user,
   });
 
+  // Fetch appointments to calculate count per service
+  // Using lightweight query - only fetching id and service_id for fast aggregation
+  const { data: appointments = [] } = useQuery<Appointment[]>({
+    queryKey: ['appointments-count', user?.id],
+    queryFn: async (): Promise<Appointment[]> => {
+      if (!user) return [];
+      const { data, error } = await (db
+        .from('appointments')
+        .select('id, service_id, status')
+        .eq('user_id', user.id)
+        .neq('status', 'cancelled') as any); // Exclude cancelled appointments
+      
+      if (error) throw error;
+      return (data || []) as Appointment[];
+    },
+    enabled: !!user,
+    staleTime: 30000, // Cache for 30 seconds for real-time performance
+  });
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -82,6 +122,7 @@ const Services = () => {
         duration,
         price: priceValue,
         color: formData.color,
+        icon: formData.icon,
         text_color: 'text-foreground',
         border_color: 'border-border',
         user_id: user.id,
@@ -107,7 +148,7 @@ const Services = () => {
       queryClient.invalidateQueries({ queryKey: ['services'] });
       setIsDialogOpen(false);
       setEditingService(null);
-      setFormData({ name: "", duration: 30, color: "bg-blue-50", price: 0 });
+      setFormData({ name: "", duration: 30, color: "bg-blue-50", price: 0, icon: "Scissors" });
     } catch (error) {
       console.error('Error saving service:', error);
       const description =
@@ -128,22 +169,28 @@ const Services = () => {
       name: service.name,
       duration: service.duration,
       color: service.color,
-      price: service.price || 0
+      price: service.price || 0,
+      icon: service.icon || 'Scissors'
     });
     setIsDialogOpen(true);
   };
+// for deleting services
+  const handleDeleteClick = (serviceId: string) => {
+    setServiceToDelete(serviceId);
+    setIsDeleteDialogOpen(true);
+  };
 
-  const handleDelete = async (serviceId: string) => {
-    if (!confirm("Are you sure you want to delete this service?")) return;
+  const confirmDelete = async () => {
+    if (!serviceToDelete) return;
 
     try {
-      const { error } = await supabase
+      const { error } = await db
         .from('services')
         .delete()
-        .eq('id', serviceId);
-      
+        .eq('id', serviceToDelete);
+
       if (error) throw error;
-      
+
       toast({ title: "Service deleted successfully!" });
       queryClient.invalidateQueries({ queryKey: ['services'] });
     } catch (error) {
@@ -153,13 +200,21 @@ const Services = () => {
         description: "Failed to delete service. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsDeleteDialogOpen(false);
+      setServiceToDelete(null);
     }
+  };
+
+  const closeDeleteDialog = () => {
+    setIsDeleteDialogOpen(false);
+    setServiceToDelete(null);
   };
 
   const closeDialog = () => {
     setIsDialogOpen(false);
     setEditingService(null);
-    setFormData({ name: "", duration: 30, color: "bg-blue-50", price: 0 });
+    setFormData({ name: "", duration: 30, color: "bg-blue-50", price: 0, icon: "Scissors" });
   };
 
   return (
@@ -236,6 +291,14 @@ const Services = () => {
                       </div>
                       
                       <div className="grid gap-2">
+                        <Label htmlFor="icon">Icon</Label>
+                        <IconPicker 
+                          value={formData.icon}
+                          onChange={(icon) => setFormData(prev => ({ ...prev, icon }))}
+                        />
+                      </div>
+                      
+                      <div className="grid gap-2">
                         <Label htmlFor="color">Color Theme</Label>
                         <Select 
                           value={formData.color} 
@@ -292,8 +355,26 @@ const Services = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {services.map((service) => {
                   const colorOption = colorOptions.find(c => c.value === service.color);
+                  const ServiceIcon = getIconByName(service.icon || 'Scissors');
+                  
+                  // Fast aggregation: count appointments for this service
+                  // Using filter instead of reduce for better performance with small arrays
+                  const appointmentCount = appointments.filter(
+                    (apt) => apt.service_id === service.id
+                  ).length;
+                  
                   return (
                     <Card key={service.id} className="relative group hover:shadow-lg transition-all duration-200 border-l-4 overflow-hidden" style={{ borderLeftColor: colorOption?.gradient?.match(/#[0-9a-f]{6}/i)?.[0] || '#3b82f6' }}>
+                      {/* Appointment count badge - shows on card */}
+                      {appointmentCount > 0 && (
+                        <div 
+                          className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium text-white shadow-sm"
+                          style={{ background: colorOption?.gradient || 'linear-gradient(135deg, #3b82f6, #1d4ed8)' }}
+                        >
+                          <Calendar className="h-3 w-3" />
+                          {appointmentCount}
+                        </div>
+                      )}
                       <div 
                         className="absolute left-0 top-0 bottom-0 w-1"
                         style={{ background: colorOption?.gradient || 'linear-gradient(135deg, #3b82f6, #1d4ed8)' }}
@@ -305,7 +386,7 @@ const Services = () => {
                               className="w-10 h-10 rounded-lg flex items-center justify-center"
                               style={{ background: colorOption?.gradient || 'linear-gradient(135deg, #3b82f6, #1d4ed8)' }}
                             >
-                              <Palette className="h-5 w-5 text-white" />
+                              <ServiceIcon className="h-5 w-5 text-white" />
                             </div>
                             <div>
                               <CardTitle className="text-lg">{service.name}</CardTitle>
@@ -328,7 +409,7 @@ const Services = () => {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 text-destructive hover:text-destructive"
-                              onClick={() => handleDelete(service.id)}
+                              onClick={() => handleDeleteClick(service.id)}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -362,9 +443,31 @@ const Services = () => {
             )}
           </div>
         </main>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+                Delete Service
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this service? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={closeDeleteDialog}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </SidebarProvider>
   );
 };
 
 export default Services;
+
