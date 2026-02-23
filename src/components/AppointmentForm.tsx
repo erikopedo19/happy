@@ -1,28 +1,29 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { CircleAlertIcon, X, UserPlus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-
-const appointmentSchema = z.object({
-  customer_id: z.string().optional(),
-  customer_name: z.string().optional(),
-  service_id: z.string().min(1, "Please select a service"),
-  notes: z.string().optional(),
-  stylist_id: z.string().optional(),
-}).refine(data => data.customer_id || data.customer_name, {
-  message: "Please select a customer or enter a new customer name",
-  path: ["customer_id"],
-});
+import { cn } from "@/lib/utils";
 
 interface AppointmentFormProps {
   isOpen: boolean;
@@ -34,20 +35,15 @@ interface AppointmentFormProps {
 export function AppointmentForm({ isOpen, onClose, selectedDate, selectedTime }: AppointmentFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isNewCustomer, setIsNewCustomer] = useState(false);
+  const [customerId, setCustomerId] = useState("");
+  const [customerName, setCustomerName] = useState("");
+  const [serviceId, setServiceId] = useState("");
+  const [stylistId, setStylistId] = useState("");
+  const [notes, setNotes] = useState("");
+  
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-
-  const form = useForm<z.infer<typeof appointmentSchema>>({
-    resolver: zodResolver(appointmentSchema),
-    defaultValues: {
-      customer_id: "",
-      customer_name: "",
-      service_id: "",
-      notes: "",
-      stylist_id: "",
-    },
-  });
 
   // Fetch customers
   const { data: customers = [] } = useQuery({
@@ -96,7 +92,9 @@ export function AppointmentForm({ isOpen, onClose, selectedDate, selectedTime }:
     enabled: !!user,
   });
 
-  const onSubmit = async (values: z.infer<typeof appointmentSchema>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
     if (!user) {
       toast({
         title: "Error",
@@ -106,16 +104,43 @@ export function AppointmentForm({ isOpen, onClose, selectedDate, selectedTime }:
       return;
     }
 
+    if (!serviceId) {
+      toast({
+        title: "Error",
+        description: "Please select a service.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!isNewCustomer && !customerId) {
+      toast({
+        title: "Error",
+        description: "Please select a customer.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (isNewCustomer && !customerName) {
+      toast({
+        title: "Error",
+        description: "Please enter a customer name.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
-      let customerId = values.customer_id;
+      let finalCustomerId = customerId;
 
       // If creating a new customer, create them first
-      if (isNewCustomer && values.customer_name) {
+      if (isNewCustomer && customerName) {
         const result = await (supabase as any)
           .from('customers')
           .insert({
-            name: values.customer_name,
+            name: customerName,
             user_id: user.id,
           })
           .select()
@@ -123,32 +148,32 @@ export function AppointmentForm({ isOpen, onClose, selectedDate, selectedTime }:
         const { data: newCustomer, error: customerError } = result;
 
         if (customerError) throw customerError;
-        customerId = newCustomer.id;
+        finalCustomerId = newCustomer.id;
       }
 
-      const selectedService = services.find(s => s.id === values.service_id);
+      const selectedService = services.find((s: any) => s.id === serviceId);
       const servicePrice = selectedService?.price || 0;
 
       const { error } = await (supabase
         .from('appointments') as any)
         .insert({
-          customer_id: customerId,
-          service_id: values.service_id,
+          customer_id: finalCustomerId,
+          service_id: serviceId,
           appointment_date: selectedDate,
           appointment_time: selectedTime,
           price: servicePrice,
-          notes: values.notes,
+          notes: notes,
           status: 'scheduled',
           user_id: user.id,
-          stylist_id: values.stylist_id || null,
+          stylist_id: stylistId || null,
         });
 
       if (error) throw error;
 
       // Send confirmation email if customer has email
       try {
-        const customer = customers.find(c => c.id === customerId);
-        const service = services.find(s => s.id === values.service_id);
+        const customer = customers.find((c: any) => c.id === finalCustomerId);
+        const service = services.find((s: any) => s.id === serviceId);
         const { data: profile } = await supabase
           .from('profiles')
           .select('full_name')
@@ -170,7 +195,7 @@ export function AppointmentForm({ isOpen, onClose, selectedDate, selectedTime }:
               }),
               appointmentTime: selectedTime,
               price: servicePrice,
-              notes: values.notes,
+              notes: notes,
             },
           });
 
@@ -180,20 +205,18 @@ export function AppointmentForm({ isOpen, onClose, selectedDate, selectedTime }:
         }
       } catch (emailError) {
         console.error('Failed to send confirmation email:', emailError);
-        // Continue even if email fails
       }
 
       toast({
         title: "Success",
-        description: "Appointment created successfully. Confirmation email sent if customer has email on file.",
+        description: "Appointment created successfully.",
       });
 
       // Invalidate and refetch appointments and customers
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       
-      form.reset();
-      onClose();
+      handleClose();
     } catch (error) {
       console.error('Error creating appointment:', error);
       toast({
@@ -207,174 +230,178 @@ export function AppointmentForm({ isOpen, onClose, selectedDate, selectedTime }:
   };
 
   const handleClose = () => {
-    form.reset();
+    setCustomerId("");
+    setCustomerName("");
+    setServiceId("");
+    setStylistId("");
+    setNotes("");
     setIsNewCustomer(false);
     onClose();
   };
 
-  const toggleCustomerMode = () => {
-    setIsNewCustomer(!isNewCustomer);
-    form.setValue("customer_id", "");
-    form.setValue("customer_name", "");
-  };
+  if (!isOpen) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Create Appointment</DialogTitle>
-          <DialogDescription>
-            Create a new appointment for the selected date and time.
-          </DialogDescription>
-        </DialogHeader>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <Card className="w-full max-w-md relative bg-white border border-gray-200 rounded-3xl shadow-2xl overflow-hidden">
+        <button
+          onClick={handleClose}
+          className="absolute right-4 top-4 text-gray-400 hover:text-gray-900 transition-colors z-10"
+        >
+          <X className="h-5 w-5" />
+        </button>
         
-        <div className="mb-4">
-          <p className="text-sm text-gray-600">
-            Date: {new Date(selectedDate).toLocaleDateString()}
-          </p>
-          <p className="text-sm text-gray-600">
-            Time: {selectedTime}
-          </p>
-        </div>
-
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-2">
-            {/* Customer toggle */}
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Customer</span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={toggleCustomerMode}
-              >
-                {isNewCustomer ? "Select Existing" : "Add New"}
-              </Button>
+        <CardHeader className="bg-gradient-to-br from-blue-50 via-purple-50/50 to-blue-50 border-b border-gray-200 p-6">
+          <CardTitle className="text-lg font-bold text-gray-900">Create Appointment</CardTitle>
+          <CardDescription className="text-gray-600">
+            Schedule a new appointment for <span className="font-medium text-gray-900">{new Date(selectedDate).toLocaleDateString()}</span> at <span className="font-medium text-gray-900">{selectedTime}</span>
+          </CardDescription>
+        </CardHeader>
+        
+        <form onSubmit={handleSubmit}>
+          <CardContent className="space-y-4 p-6">
+            {/* Customer Tabs - iOS Style */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium text-gray-900">Customer</Label>
+              <div className="flex items-center bg-gray-100 rounded-xl p-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsNewCustomer(false);
+                    setCustomerId("");
+                  }}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-all flex-1 justify-center",
+                    !isNewCustomer
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  )}
+                >
+                  <Users className="w-4 h-4" />
+                  <span>Existing</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsNewCustomer(true);
+                    setCustomerName("");
+                  }}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-all flex-1 justify-center",
+                    isNewCustomer
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  )}
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>New</span>
+                </button>
+              </div>
             </div>
 
             {/* Customer selection/input */}
             {isNewCustomer ? (
-              <FormField
-                control={form.control}
-                name="customer_name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Customer Name</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Enter customer name"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="space-y-2">
+                <Label htmlFor="customerName" className="text-gray-700">Customer Name</Label>
+                <Input
+                  id="customerName"
+                  placeholder="Enter customer name"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  className="bg-white border-gray-300 text-gray-900 rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
             ) : (
-              <FormField
-                control={form.control}
-                name="customer_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Customer</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a customer" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {customers.map((customer) => (
-                          <SelectItem key={customer.id} value={customer.id}>
-                            {customer.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="space-y-2">
+                <Label htmlFor="customer" className="text-gray-700">Select Customer</Label>
+                <Select value={customerId} onValueChange={setCustomerId}>
+                  <SelectTrigger className="bg-white border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500">
+                    <SelectValue placeholder="Select a customer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {customers.map((customer: any) => (
+                      <SelectItem key={customer.id} value={customer.id}>
+                        {customer.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             )}
 
-            <FormField
-              control={form.control}
-              name="service_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Service</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a service" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {services.map((service) => (
-                        <SelectItem key={service.id} value={service.id}>
-                          {service.name} ({service.duration}min)
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* Service selection */}
+            <div className="space-y-2">
+              <Label htmlFor="service" className="text-gray-700">Service *</Label>
+              <Select value={serviceId} onValueChange={setServiceId}>
+                <SelectTrigger className="bg-white border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500">
+                  <SelectValue placeholder="Select a service" />
+                </SelectTrigger>
+                <SelectContent>
+                  {services.map((service: any) => (
+                    <SelectItem key={service.id} value={service.id}>
+                      {service.name} ({service.duration}min)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-            <FormField
-              control={form.control}
-              name="stylist_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Stylist (optional)</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a stylist" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {stylists.map((stylist) => (
-                        <SelectItem key={stylist.id} value={stylist.id}>
-                          {stylist.name} {stylist.title ? `• ${stylist.title}` : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* Stylist selection */}
+            <div className="space-y-2">
+              <Label htmlFor="stylist" className="text-gray-700">Stylist (Optional)</Label>
+              <Select value={stylistId} onValueChange={setStylistId}>
+                <SelectTrigger className="bg-white border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500">
+                  <SelectValue placeholder="Select a stylist" />
+                </SelectTrigger>
+                <SelectContent>
+                  {stylists.map((stylist: any) => (
+                    <SelectItem key={stylist.id} value={stylist.id}>
+                      {stylist.name} {stylist.title ? `• ${stylist.title}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notes (optional)</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Add any notes for this appointment..."
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* Notes */}
+            <div className="space-y-2">
+              <Label htmlFor="notes" className="text-gray-700">Notes (Optional)</Label>
+              <Textarea
+                id="notes"
+                placeholder="Add any notes for this appointment..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="bg-white border-gray-300 text-gray-900 rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 min-h-[80px]"
+              />
+            </div>
+          </CardContent>
 
-            <div className="flex justify-end space-x-2 pt-4">
-              <Button type="button" variant="outline" onClick={handleClose}>
+          <CardFooter className="flex flex-col gap-4 p-6 pt-0">
+            <div className="flex gap-3 w-full">
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="flex-1 h-11 rounded-xl border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" 
+                onClick={handleClose}
+              >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isLoading}>
+              <Button 
+                type="submit" 
+                className="flex-1 h-11 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-lg shadow-blue-500/20" 
+                disabled={isLoading}
+              >
                 {isLoading ? "Creating..." : "Create Appointment"}
               </Button>
             </div>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+            
+            <div className="flex gap-1.5 text-gray-500 text-xs w-full">
+              <CircleAlertIcon className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+              <p>Confirmation email will be sent if customer has email on file.</p>
+            </div>
+          </CardFooter>
+        </form>
+      </Card>
+    </div>
   );
 }

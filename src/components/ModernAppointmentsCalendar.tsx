@@ -63,13 +63,27 @@ interface ModernAppointmentsCalendarProps {
   appointments: Appointment[];
   onDateTimeClick: (date: string, time: string) => void;
   services?: Service[];
+  currentWeekExternal?: Date;
+  onWeekChange?: (week: Date) => void;
 }
 export const ModernAppointmentsCalendar = ({
   appointments,
   onDateTimeClick,
-  services = []
+  services = [],
+  currentWeekExternal,
+  onWeekChange
 }: ModernAppointmentsCalendarProps) => {
-  const [currentWeek, setCurrentWeek] = useState(new Date());
+  const isControlledExternally = !!currentWeekExternal;
+  const [internalCurrentWeek, setInternalCurrentWeek] = useState(new Date());
+  const currentWeek = currentWeekExternal ?? internalCurrentWeek;
+  const setCurrentWeek = (week: Date | ((prev: Date) => Date)) => {
+    if (onWeekChange) {
+      const newWeek = typeof week === 'function' ? week(currentWeek) : week;
+      onWeekChange(newWeek);
+    } else {
+      setInternalCurrentWeek(week);
+    }
+  };
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedService, setSelectedService] = useState<string | null>(null);
   // showCards state removed
@@ -80,12 +94,15 @@ export const ModernAppointmentsCalendar = ({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [rescheduleDate, setRescheduleDate] = useState('');
   const [rescheduleTime, setRescheduleTime] = useState('');
-  const [viewMode, setViewMode] = useState<'week' | 'day'>('week');
+  const [viewMode, setViewMode] = useState<'week' | 'day'>(currentWeekExternal ? 'day' : 'week');
   const [longPressedId, setLongPressedId] = useState<string | null>(null);
   const [showQuickBooking, setShowQuickBooking] = useState(false);
   const [quickBookingDate, setQuickBookingDate] = useState('');
   const [quickBookingTime, setQuickBookingTime] = useState('');
-  const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
+  const [showRatingDialog, setShowRatingDialog] = useState(false);
+  const [stylistRating, setStylistRating] = useState(0);
+  const [ratingComment, setRatingComment] = useState('');
+  const [isCompleting, setIsCompleting] = useState(false);
   const {
     theme,
     setTheme
@@ -104,7 +121,7 @@ export const ModernAppointmentsCalendar = ({
     queryKey: ['agenda_settings', user?.id],
     queryFn: async () => {
       if (!user) return null;
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('agenda_settings')
         .select('start_hour, end_hour, service_duration')
         .eq('user_id', user.id)
@@ -237,7 +254,7 @@ export const ModernAppointmentsCalendar = ({
     try {
       const {
         error
-      } = await supabase.from('appointments').update({
+      } = await (supabase as any).from('appointments').update({
         appointment_date: rescheduleDate,
         appointment_time: rescheduleTime,
         updated_at: new Date().toISOString()
@@ -270,7 +287,7 @@ export const ModernAppointmentsCalendar = ({
     try {
       const {
         error
-      } = await supabase.from('appointments').delete().eq('id', selectedAppointment.id);
+      } = await (supabase as any).from('appointments').delete().eq('id', selectedAppointment.id);
       if (error) throw error;
       toast({
         title: "Appointment Deleted",
@@ -372,13 +389,103 @@ export const ModernAppointmentsCalendar = ({
   };
 
   // Handle right click for quick booking
+  const handleCompleteAppointment = async () => {
+    if (!selectedAppointment) return;
+    setIsCompleting(true);
+    try {
+      const { error } = await (supabase as any)
+        .from('appointments')
+        .update({ status: 'completed' })
+        .eq('id', selectedAppointment.id);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Appointment Completed",
+        description: "The appointment has been marked as completed."
+      });
+      
+      setShowAppointmentDetails(false);
+      
+      // Show rating dialog if stylist exists
+      if (selectedAppointment.stylist?.id) {
+        setShowRatingDialog(true);
+      } else {
+        setSelectedAppointment(null);
+        window.dispatchEvent(new Event('appointmentUpdated'));
+      }
+    } catch (error) {
+      console.error('Error completing appointment:', error);
+      toast({
+        title: "Error",
+        description: "Failed to complete appointment",
+        variant: "destructive"
+      });
+    } finally {
+      setIsCompleting(false);
+    }
+  };
+
+  const handleSubmitRating = async () => {
+    if (!selectedAppointment?.stylist?.id || stylistRating === 0) return;
+    
+    try {
+      // Save rating to stylist_ratings table
+      const { error } = await (supabase as any)
+        .from('stylist_ratings')
+        .insert({
+          stylist_id: selectedAppointment.stylist.id,
+          appointment_id: selectedAppointment.id,
+          rating: stylistRating,
+          comment: ratingComment,
+          user_id: user?.id,
+          created_at: new Date().toISOString()
+        });
+      
+      if (error) throw error;
+      
+      // Update stylist satisfaction score
+      const { data: existingRatings } = await (supabase as any)
+        .from('stylist_ratings')
+        .select('rating')
+        .eq('stylist_id', selectedAppointment.stylist.id);
+      
+      if (existingRatings && existingRatings.length > 0) {
+        const avgRating = existingRatings.reduce((sum: number, r: { rating: number }) => sum + r.rating, 0) / existingRatings.length;
+        
+        await (supabase as any)
+          .from('stylists')
+          .update({ satisfaction: avgRating })
+          .eq('id', selectedAppointment.stylist.id);
+      }
+      
+      toast({
+        title: "Rating Submitted",
+        description: `You rated ${selectedAppointment.stylist.name} ${stylistRating} stars!`
+      });
+      
+      setShowRatingDialog(false);
+      setStylistRating(0);
+      setRatingComment('');
+      setSelectedAppointment(null);
+      window.dispatchEvent(new Event('appointmentUpdated'));
+    } catch (error) {
+      console.error('Error submitting rating:', error);
+      toast({
+        title: "Error",
+        description: "Failed to submit rating",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Handle right click for quick booking
   const handleSlotRightClick = (e: React.MouseEvent, date: Date, time: string) => {
     e.preventDefault();
     const appointments = getAppointmentsForDateTime(date, time);
     if (appointments.length === 0 && !isBreakSlot(date, time)) {
       setQuickBookingDate(format(date, 'yyyy-MM-dd'));
       setQuickBookingTime(time);
-      setContextMenuPosition({ x: e.clientX, y: e.clientY });
       setShowQuickBooking(true);
     }
   };
@@ -387,21 +494,21 @@ export const ModernAppointmentsCalendar = ({
   const handleQuickBooking = async (data: { customerName: string; serviceId: string }) => {
     try {
       // First create or find customer
-      const { data: existingCustomer } = await supabase
+      const { data: existingCustomer } = await (supabase as any)
         .from('customers')
         .select('*')
         .eq('name', data.customerName)
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+        .eq('user_id', user?.id)
         .single();
 
       let customerId = existingCustomer?.id;
 
       if (!customerId) {
-        const { data: newCustomer, error: customerError } = await supabase
+        const { data: newCustomer, error: customerError } = await (supabase as any)
           .from('customers')
           .insert({
             name: data.customerName,
-            user_id: (await supabase.auth.getUser()).data.user?.id
+            user_id: user?.id
           })
           .select()
           .single();
@@ -411,14 +518,14 @@ export const ModernAppointmentsCalendar = ({
       }
 
       // Create appointment
-      const { error: appointmentError } = await supabase
+      const { error: appointmentError } = await (supabase as any)
         .from('appointments')
         .insert({
           customer_id: customerId,
           service_id: data.serviceId,
           appointment_date: quickBookingDate,
           appointment_time: quickBookingTime,
-          user_id: (await supabase.auth.getUser()).data.user?.id,
+          user_id: user?.id,
           status: 'scheduled'
         });
 
@@ -469,8 +576,9 @@ export const ModernAppointmentsCalendar = ({
   }, [appointments]);
   return (
     <div className="min-h-screen bg-background">
-      {/* Modern Header */}
-      <div className="border-b border-gray-200 backdrop-blur-sm sticky top-0 z-10 bg-white/90">
+      {/* Modern Header - Only show when not controlled externally */}
+      {!isControlledExternally && (
+        <div className="border-b border-gray-200 backdrop-blur-sm sticky top-0 z-10 bg-white/90">
         <div className="px-6 py-3 flex items-center justify-between gap-4">
           {/* Left: Date and Week */}
           <div>
@@ -535,7 +643,8 @@ export const ModernAppointmentsCalendar = ({
             </div>
           </div>
         </div>
-      </div>
+        </div>
+      )}
 
       {/* Calendar Grid - Conditional Rendering Based on View Mode */}
       {viewMode === 'week' ? (
@@ -826,6 +935,15 @@ export const ModernAppointmentsCalendar = ({
                 )}
               </div>
               <div className="flex gap-2 pt-4">
+                <Button 
+                  variant="outline" 
+                  className="flex-1 border-green-200 hover:bg-green-50 hover:border-green-300 text-green-700" 
+                  onClick={handleCompleteAppointment}
+                  disabled={isCompleting || selectedAppointment.status === 'completed'}
+                >
+                  <Check className="h-4 w-4 mr-2" />
+                  {selectedAppointment.status === 'completed' ? 'Completed' : 'Complete'}
+                </Button>
                 <Button variant="outline" className="flex-1 border-gray-200 hover:bg-white/60 hover:border-gray-300 text-gray-700" onClick={handleReschedule}>
                   <Edit3 className="h-4 w-4 mr-2" />
                   Reschedule
@@ -998,6 +1116,84 @@ export const ModernAppointmentsCalendar = ({
           </Form>
         </DialogContent>
       </Dialog>
-    </div >
+
+      {/* Rating Dialog */}
+      <Dialog open={showRatingDialog} onOpenChange={setShowRatingDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Star className="h-5 w-5 text-yellow-500" />
+              Rate Your Stylist
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedAppointment?.stylist && (
+            <div className="space-y-4 py-4">
+              <div className="p-3 bg-white/60 rounded-lg border border-gray-200 backdrop-blur-sm">
+                <p className="font-medium text-sm text-gray-800">{selectedAppointment.stylist.name}</p>
+                <p className="text-xs text-gray-500">{selectedAppointment.service.name}</p>
+              </div>
+
+              {/* Star Rating */}
+              <div className="flex justify-center gap-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    onClick={() => setStylistRating(star)}
+                    className="p-1 transition-colors"
+                  >
+                    <Star
+                      className={`h-8 w-8 ${
+                        star <= stylistRating
+                          ? 'fill-yellow-400 text-yellow-400'
+                          : 'text-gray-300'
+                      }`}
+                    />
+                  </button>
+                ))}
+              </div>
+
+              {/* Comment Input */}
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-2">
+                  Comment (optional)
+                </label>
+                <Input
+                  value={ratingComment}
+                  onChange={(e) => setRatingComment(e.target.value)}
+                  placeholder="How was your experience?"
+                  className="h-10 border-gray-200 focus:border-gray-300 bg-white/60 backdrop-blur-sm"
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowRatingDialog(false);
+                setStylistRating(0);
+                setRatingComment('');
+                setSelectedAppointment(null);
+                window.dispatchEvent(new Event('appointmentUpdated'));
+              }}
+              className="border-gray-200 hover:bg-white/60 hover:border-gray-300 text-gray-700"
+            >
+              Skip
+            </Button>
+            <Button
+              onClick={handleSubmitRating}
+              disabled={stylistRating === 0}
+              className="bg-yellow-500 hover:bg-yellow-600 text-white border border-yellow-300"
+            >
+              <Star className="h-4 w-4 mr-2" />
+              Submit Rating
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+    </div>
   );
 };

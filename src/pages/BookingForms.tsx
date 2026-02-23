@@ -18,7 +18,7 @@ const BookingForms = () => {
       console.log('Fetching all booking forms');
       
       // Get profiles with booking links (via secure RPC)
-      const { data: profiles, error: profilesError } = await supabase
+      const { data: profiles, error: profilesError } = await (supabase as any)
         .rpc('list_public_profiles');
       
       if (profilesError) {
@@ -60,7 +60,7 @@ const BookingForms = () => {
     brand.industry?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     brand.location?.toLowerCase().includes(searchTerm.toLowerCase())
   ) || [];
-
+//fix the stylist to not let book on blocked day
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">

@@ -16,6 +16,7 @@ import { format } from 'date-fns';
 import { UseFormReturn } from "react-hook-form";
 import { cn } from "@/lib/utils";
 import { PStepper } from "@/components/p-stepper";
+import { FadeInUpText } from '@/components/ui/fade-in-up-text';
 
 interface Service {
   id: string;
@@ -80,12 +81,15 @@ const ModernBookingForm = ({
   const brandColor = businessProfile?.brand_color || '#e0c4a8';
 
   // Filter stylists that are available for the selected service
+  // If no stylistServices exist, show all stylists for any service
   const availableStylistsForService = selectedServiceId
-    ? stylists.filter(stylist =>
-        stylistServices.some(ss =>
-          ss.stylist_id === stylist.id && ss.service_id === selectedServiceId
-        )
-      )
+    ? (stylistServices.length > 0 
+        ? stylists.filter(stylist =>
+            stylistServices.some(ss =>
+              ss.stylist_id === stylist.id && ss.service_id === selectedServiceId
+            )
+          )
+        : stylists) // Show all stylists if no service-stylist relationships defined
     : stylists;
 
   // Auto-advance when service is selected if on step 1
@@ -121,7 +125,7 @@ const ModernBookingForm = ({
   };
 
   return (
-    <div className="min-h-screen md:h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white p-4 font-sans flex flex-col overflow-hidden">
+    <div className="min-h-screen md:h-screen bg-gradient-to-br from-gray-100 via-white to-gray-50 text-gray-900 p-4 font-sans flex flex-col overflow-hidden" style={{ transform: 'scale(1.2)', transformOrigin: 'top left', width: '83.33%', height: '83.33vh' }}>
       <div className="max-w-6xl mx-auto w-full flex-1 flex flex-col min-h-0">
         {/* Header & Progress Bar */}
         <div className="mb-4 flex-shrink-0">
@@ -129,7 +133,7 @@ const ModernBookingForm = ({
             {step > 1 && step < 4 ? (
               <button
                 onClick={handleBack}
-                className="flex items-center text-gray-400 hover:text-white transition-colors"
+                className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
               >
                 <ChevronLeft className="w-5 h-5 mr-1" />
                 <span>Πίσω</span>
@@ -137,7 +141,7 @@ const ModernBookingForm = ({
             ) : (
               <div /> // Spacer
             )}
-            <div className="text-gray-400 text-sm">
+            <div className="text-gray-500 text-sm">
               {step < 4 ? `Βήμα ${step} από 3` : 'Ολοκληρώθηκε'}
             </div>
           </div>
@@ -153,13 +157,13 @@ const ModernBookingForm = ({
         <div className="grid lg:grid-cols-3 gap-6 flex-1 min-h-0">
           {/* Main Content Area */}
           <div className="lg:col-span-2 flex flex-col min-h-0">
-            <Card className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden shadow-2xl flex-1 flex flex-col min-h-0">
+            <Card className="bg-white border border-gray-200 rounded-3xl overflow-hidden shadow-xl flex-1 flex flex-col min-h-0">
               <CardContent className="p-4 md:p-6 flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
 
                 {/* STEP 1: SERVICES */}
                 {step === 1 && (
                   <div className="space-y-4 animate-in fade-in slide-in-from-right-8 duration-500">
-                    <h2 className="text-xl font-bold text-white mb-4">
+                    <h2 className="text-xl font-bold text-gray-900 mb-4">
                       {rescheduleAppointment ? 'Αλλαγή Υπηρεσίας (Προαιρετικό)' : 'Επιλέξτε Υπηρεσία'}
                     </h2>
                     <div className="grid gap-3">
@@ -168,8 +172,8 @@ const ModernBookingForm = ({
                           key={service.id}
                           onClick={() => handleServiceSelect(service.id)}
                           className={cn(
-                            "group relative p-3 rounded-xl border border-white/10 bg-black/40 hover:bg-white/5 cursor-pointer transition-all duration-200",
-                            selectedServiceId === service.id && "border-white ring-1 ring-white bg-gray-800"
+                            "group relative p-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 cursor-pointer transition-all duration-200 shadow-sm",
+                            selectedServiceId === service.id && "border-blue-500 ring-2 ring-blue-500 bg-blue-50"
                           )}
                         >
                           <div className="flex justify-between items-center">
@@ -181,14 +185,14 @@ const ModernBookingForm = ({
                                 {service.name.charAt(0)}
                               </div>
                               <div>
-                                <h3 className="text-base font-bold text-white group-hover:text-white transition-colors">
+                                <h3 className="text-base font-bold text-gray-900 group-hover:text-gray-900 transition-colors">
                                   {service.name}
                                 </h3>
-                                <p className="text-gray-400 text-xs">{service.duration} λεπτά</p>
+                                <p className="text-gray-500 text-xs">{service.duration} λεπτά</p>
                               </div>
                             </div>
                             <div className="text-right">
-                              <span className="text-base font-bold text-white">{service.price} €</span>
+                              <span className="text-base font-bold text-gray-900">{service.price} €</span>
                             </div>
                           </div>
                         </div>
@@ -200,12 +204,12 @@ const ModernBookingForm = ({
                 {/* STEP 2: DATE & TIME */}
                 {step === 2 && (
                   <div className="space-y-4 animate-in fade-in slide-in-from-right-8 duration-500 h-full flex flex-col">
-                    <h2 className="text-xl font-bold text-white mb-4 flex-shrink-0">
+                    <h2 className="text-xl font-bold text-gray-900 mb-4 flex-shrink-0">
                       {rescheduleAppointment ? 'Νέα Ημερομηνία & Ώρα' : 'Επιλέξτε Ημερομηνία & Ώρα'}
                     </h2>
                     <div className="grid md:grid-cols-2 gap-6 flex-1 min-h-0">
                       {/* Calendar */}
-                      <div className="calendar-dark-theme overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
+                      <div className="calendar-white-theme overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
                         <CalendarComponent
                           mode="single"
                           selected={selectedDate}
@@ -219,22 +223,22 @@ const ModernBookingForm = ({
                             months: "w-full",
                             month: "w-full space-y-2",
                             caption: "flex justify-between pt-1 relative items-center mb-2",
-                            caption_label: "text-base font-medium text-gray-200",
+                            caption_label: "text-base font-medium text-gray-900",
                             nav: "space-x-1 flex items-center",
-                            nav_button: "h-6 w-6 bg-transparent p-0 text-gray-400 hover:text-white hover:bg-gray-800 rounded-full transition-colors",
+                            nav_button: "h-6 w-6 bg-transparent p-0 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors",
                             table: "w-full border-collapse space-y-1",
                             head_row: "flex justify-between w-full mb-1",
                             head_cell: "text-gray-500 rounded-md w-8 font-normal text-[0.7rem] uppercase",
                             row: "flex w-full mt-1 justify-between",
                             cell: "text-center text-xs p-0 relative [&:has([aria-selected])]:bg-transparent focus-within:relative focus-within:z-20",
                             day: cn(
-                              "h-8 w-8 p-0 font-normal text-gray-300 hover:bg-gray-800 hover:text-white rounded-full transition-all duration-200",
+                              "h-8 w-8 p-0 font-normal text-gray-700 hover:bg-gray-100 hover:text-gray-900 rounded-full transition-all duration-200",
                               "aria-selected:opacity-100"
                             ),
-                            day_selected: "text-black hover:text-black font-medium",
-                            day_today: "text-white font-bold relative after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:bg-current after:rounded-full",
-                            day_outside: "text-gray-700 opacity-50",
-                            day_disabled: "text-gray-700 opacity-30 line-through decoration-gray-700",
+                            day_selected: "text-white hover:text-white font-medium",
+                            day_today: "text-gray-900 font-bold relative after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:bg-current after:rounded-full",
+                            day_outside: "text-gray-400 opacity-50",
+                            day_disabled: "text-gray-300 opacity-30 line-through decoration-gray-300",
                           }}
                           modifiersStyles={{
                             selected: { backgroundColor: brandColor }
@@ -244,7 +248,7 @@ const ModernBookingForm = ({
 
                       {/* Time Slots */}
                       <div className="space-y-2 flex flex-col min-h-0">
-                        <div className="text-gray-400 mb-2 text-xs flex-shrink-0">
+                        <div className="text-gray-600 mb-2 text-xs flex-shrink-0">
                           {selectedDate ? format(selectedDate, 'EEEE d MMMM') : 'Επιλέξτε ημερομηνία'}
                         </div>
                         <div className="grid grid-cols-2 gap-2 overflow-y-auto pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] flex-1 content-start">
@@ -260,14 +264,14 @@ const ModernBookingForm = ({
                                   className={cn(
                                     "w-full justify-center text-xs font-medium h-9 rounded-full border transition-all duration-200",
                                     selectedTime === time
-                                      ? "text-black hover:opacity-90 hover:text-black"
-                                      : "bg-transparent border-gray-700 text-gray-300 hover:border-gray-500 hover:text-white hover:bg-gray-800"
+                                      ? "text-white hover:opacity-90 hover:text-white"
+                                      : "bg-white border-gray-300 text-gray-700 hover:border-gray-400 hover:text-gray-900 hover:bg-gray-50"
                                   )}
                                 >
                                   {time}
                                 </Button>
                                 {selectedTime === time && availableStylists.length > 0 && (
-                                  <div className="text-xs text-gray-400 px-2">
+                                  <div className="text-xs text-gray-500 px-2">
                                     {availableStylists.length} stylist{availableStylists.length > 1 ? 's' : ''} available
                                   </div>
                                 )}
@@ -293,7 +297,7 @@ const ModernBookingForm = ({
                 {/* STEP 3: INFO FORM */}
                 {step === 3 && (
                   <div className="space-y-4 animate-in fade-in slide-in-from-right-8 duration-500">
-                    <h2 className="text-xl font-bold text-white mb-4">
+                    <h2 className="text-xl font-bold text-gray-900 mb-4">
                       {rescheduleAppointment ? 'Επιβεβαίωση Στοιχείων' : 'Στοιχεία Κράτησης'}
                     </h2>
                     <Form {...form}>
@@ -304,9 +308,9 @@ const ModernBookingForm = ({
                             name="customer_name"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="text-gray-400 text-xs">Ονοματεπώνυμο</FormLabel>
+                                <FormLabel className="text-gray-600 text-xs">Ονοματεπώνυμο</FormLabel>
                                 <FormControl>
-                                  <Input {...field} className="bg-[#1a1a1a] border-gray-700 text-white rounded-xl h-10 text-sm focus:border-current focus:ring-1 focus:ring-current" />
+                                  <Input {...field} className="bg-white border-gray-300 text-gray-900 rounded-xl h-10 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -317,9 +321,9 @@ const ModernBookingForm = ({
                             name="customer_email"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="text-gray-400 text-xs">Email</FormLabel>
+                                <FormLabel className="text-gray-600 text-xs">Email</FormLabel>
                                 <FormControl>
-                                  <Input {...field} className="bg-[#1a1a1a] border-gray-700 text-white rounded-xl h-10 text-sm focus:border-current focus:ring-1 focus:ring-current" />
+                                  <Input {...field} className="bg-white border-gray-300 text-gray-900 rounded-xl h-10 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -332,9 +336,9 @@ const ModernBookingForm = ({
                             name="customer_phone"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="text-gray-400 text-xs">Τηλέφωνο</FormLabel>
+                                <FormLabel className="text-gray-600 text-xs">Τηλέφωνο</FormLabel>
                                 <FormControl>
-                                  <Input {...field} className="bg-[#1a1a1a] border-gray-700 text-white rounded-xl h-10 text-sm focus:border-current focus:ring-1 focus:ring-current" />
+                                  <Input {...field} className="bg-white border-gray-300 text-gray-900 rounded-xl h-10 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -345,9 +349,9 @@ const ModernBookingForm = ({
                             name="notes"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="text-gray-400 text-xs">Σημειώσεις</FormLabel>
+                                <FormLabel className="text-gray-600 text-xs">Σημειώσεις</FormLabel>
                                 <FormControl>
-                                  <Input {...field} className="bg-[#1a1a1a] border-gray-700 text-white rounded-xl h-10 text-sm focus:border-current focus:ring-1 focus:ring-current" />
+                                  <Input {...field} className="bg-white border-gray-300 text-gray-900 rounded-xl h-10 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -360,7 +364,7 @@ const ModernBookingForm = ({
                               name="stylist_id"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel className="text-gray-400 text-xs">Επιλογή Στυλίστα</FormLabel>
+                                  <FormLabel className="text-gray-600 text-xs">Επιλογή Στυλίστα</FormLabel>
                                   <FormControl>
                                     <div className="grid sm:grid-cols-2 gap-2">
                                       {availableStylistsForService.length === 0 && (
@@ -379,13 +383,13 @@ const ModernBookingForm = ({
                                             type="button"
                                             onClick={() => field.onChange(stylist.id)}
                                             className={cn(
-                                              "flex items-center gap-3 p-3 rounded-xl border text-left transition-all duration-200 bg-[#1a1a1a]",
+                                              "flex items-center gap-3 p-3 rounded-xl border text-left transition-all duration-200 bg-white",
                                               isSelected
-                                                ? "border-white/70 shadow-[0_0_0_1px] shadow-white/40"
-                                                : "border-gray-700 hover:border-gray-500"
+                                                ? "border-blue-500 shadow-[0_0_0_2px] shadow-blue-500/20"
+                                                : "border-gray-300 hover:border-gray-400"
                                             )}
                                           >
-                                            <div className="h-10 w-10 rounded-full bg-gray-800 border border-gray-700 overflow-hidden flex items-center justify-center text-sm font-semibold text-white">
+                                            <div className="h-10 w-10 rounded-full bg-gray-100 border border-gray-200 overflow-hidden flex items-center justify-center text-sm font-semibold text-gray-700">
                                               {stylist.avatar_url ? (
                                                 <img src={stylist.avatar_url} alt={stylist.name} className="h-full w-full object-cover" />
                                               ) : (
@@ -393,13 +397,13 @@ const ModernBookingForm = ({
                                               )}
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                              <div className="text-white text-sm font-medium truncate">{stylist.name}</div>
+                                              <div className="text-gray-900 text-sm font-medium truncate">{stylist.name}</div>
                                               <div className="text-gray-500 text-xs truncate">{stylist.title || "Στυλίστας"}</div>
                                             </div>
                                             <div
                                               className={cn(
                                                 "h-2 w-2 rounded-full",
-                                                isSelected ? "bg-green-400" : "bg-gray-700"
+                                                isSelected ? "bg-green-500" : "bg-gray-300"
                                               )}
                                             />
                                           </button>
@@ -417,7 +421,7 @@ const ModernBookingForm = ({
                         <Button
                           type="submit"
                           disabled={isLoading}
-                          className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white font-bold h-11 rounded-xl mt-2 transition-all hover:opacity-90 hover:shadow-lg hover:shadow-blue-500/20"
+                          className="w-full bg-blue-600 text-white font-bold h-11 rounded-xl mt-2 transition-all hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-500/20"
                         >
                           {isLoading ? "Επεξεργασία..." : (rescheduleAppointment ? "Επιβεβαίωση Αλλαγής" : "Επιβεβαίωση Κράτησης")}
                         </Button>
@@ -429,17 +433,17 @@ const ModernBookingForm = ({
                 {/* STEP 4: SUCCESS CONFIRMATION */}
                 {step === 4 && (
                   <div className="flex flex-col items-center justify-center min-h-full animate-in fade-in zoom-in duration-500 py-8 w-full">
-                    <Card className="w-full max-w-lg border-0 bg-gradient-to-br from-green-950/50 via-gray-900 to-gray-950 shadow-2xl overflow-hidden">
+                    <Card className="w-full max-w-lg border-0 bg-white shadow-2xl overflow-hidden">
                       {/* Success Header */}
                       <CardContent className="p-0">
-                        <div className="bg-gradient-to-r from-green-600/20 via-green-500/10 to-green-600/20 p-8 text-center border-b border-green-500/20">
-                          <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-4 ring-4 ring-green-500/10">
-                            <CheckCircle2 className="w-10 h-10 text-green-500" />
+                        <div className="bg-gradient-to-r from-green-50 via-green-100/50 to-green-50 p-8 text-center border-b border-green-200">
+                          <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4 ring-4 ring-green-200">
+                            <CheckCircle2 className="w-10 h-10 text-green-600" />
                           </div>
-                          <h2 className="text-2xl font-bold text-white mb-2">
+                          <h2 className="text-2xl font-bold text-gray-900 mb-2">
                             {rescheduleAppointment ? 'Το ραντεβού άλλαξε!' : 'Η κράτηση ολοκληρώθηκε!'}
                           </h2>
-                          <p className="text-gray-400 max-w-sm mx-auto text-sm">
+                          <p className="text-gray-600 max-w-sm mx-auto text-sm">
                             {rescheduleAppointment
                               ? 'Το ραντεβού σας ενημερώθηκε επιτυχώς. Θα λάβετε email επιβεβαίωσης.'
                               : 'Ευχαριστούμε για την προτίμηση. Θα λάβετε email επιβεβαίωσης σύντομα.'}
@@ -457,37 +461,37 @@ const ModernBookingForm = ({
                               <Scissors className="w-6 h-6" />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <h3 className="font-bold text-white text-lg">{selectedService?.name}</h3>
-                              <p className="text-gray-400 text-sm">{selectedService?.duration} λεπτά</p>
-                              <Badge variant="secondary" className="mt-2 bg-green-500/10 text-green-400 border-green-500/20">
+                              <h3 className="font-bold text-gray-900 text-lg">{selectedService?.name}</h3>
+                              <p className="text-gray-500 text-sm">{selectedService?.duration} λεπτά</p>
+                              <Badge variant="secondary" className="mt-2 bg-green-100 text-green-700 border-green-200">
                                 <Euro className="w-3 h-3 mr-1" />
                                 {selectedService?.price} €
                               </Badge>
                             </div>
                           </div>
 
-                          <Separator className="bg-gray-800" />
+                          <Separator className="bg-gray-200" />
 
                           {/* Date & Time */}
                           <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50">
-                              <div className="flex items-center gap-2 text-gray-400 mb-2">
+                            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                              <div className="flex items-center gap-2 text-gray-500 mb-2">
                                 <CalendarDays className="w-4 h-4" />
                                 <span className="text-xs uppercase tracking-wide">Ημερομηνία</span>
                               </div>
-                              <p className="text-white font-medium">
+                              <p className="text-gray-900 font-medium">
                                 {selectedDate && format(selectedDate, 'EEEE d MMMM')}
                               </p>
                               <p className="text-gray-500 text-sm">
                                 {selectedDate && format(selectedDate, 'yyyy')}
                               </p>
                             </div>
-                            <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50">
-                              <div className="flex items-center gap-2 text-gray-400 mb-2">
+                            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                              <div className="flex items-center gap-2 text-gray-500 mb-2">
                                 <Clock3 className="w-4 h-4" />
                                 <span className="text-xs uppercase tracking-wide">Ώρα</span>
                               </div>
-                              <p className="text-white font-medium text-lg">{selectedTime}</p>
+                              <p className="text-gray-900 font-medium text-lg">{selectedTime}</p>
                               <p className="text-gray-500 text-sm">τοπική ώρα</p>
                             </div>
                           </div>
@@ -495,22 +499,22 @@ const ModernBookingForm = ({
                           {/* Stylist Info */}
                           {selectedStylistId && (
                             <>
-                              <Separator className="bg-gray-800" />
-                              <div className="bg-gray-800/30 rounded-xl p-4 border border-gray-700/30">
+                              <Separator className="bg-gray-200" />
+                              <div className="bg-gray-50/50 rounded-xl p-4 border border-gray-200">
                                 <p className="text-xs text-gray-500 uppercase tracking-wide mb-3">Στυλίστας</p>
                                 {(() => {
                                   const stylist = stylists.find(s => s.id === selectedStylistId);
                                   return stylist ? (
                                     <div className="flex items-center gap-3">
-                                      <Avatar className="h-12 w-12 border-2 border-gray-700">
+                                      <Avatar className="h-12 w-12 border-2 border-gray-200">
                                         <AvatarImage src={stylist.avatar_url || undefined} alt={stylist.name} />
                                         <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white font-semibold">
                                           {stylist.name?.charAt(0).toUpperCase()}
                                         </AvatarFallback>
                                       </Avatar>
                                       <div>
-                                        <p className="text-white font-medium">{stylist.name}</p>
-                                        <p className="text-gray-400 text-sm">{stylist.title || "Στυλίστας"}</p>
+                                        <p className="text-gray-900 font-medium">{stylist.name}</p>
+                                        <p className="text-gray-500 text-sm">{stylist.title || "Στυλίστας"}</p>
                                       </div>
                                     </div>
                                   ) : null;
@@ -522,14 +526,14 @@ const ModernBookingForm = ({
                           {/* Location Info */}
                           {(businessProfile?.address) && (
                             <>
-                              <Separator className="bg-gray-800" />
-                              <div className="flex items-start gap-3 bg-gray-800/30 rounded-xl p-4 border border-gray-700/30">
-                                <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-                                  <MapPin className="w-5 h-5 text-blue-400" />
+                              <Separator className="bg-gray-200" />
+                              <div className="flex items-start gap-3 bg-gray-50/50 rounded-xl p-4 border border-gray-200">
+                                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                                  <MapPin className="w-5 h-5 text-blue-600" />
                                 </div>
                                 <div className="flex-1">
-                                  <p className="text-white font-medium">{businessProfile.full_name}</p>
-                                  <p className="text-gray-400 text-sm">{businessProfile.address}</p>
+                                  <p className="text-gray-900 font-medium">{businessProfile.full_name}</p>
+                                  <p className="text-gray-600 text-sm">{businessProfile.address}</p>
                                   {businessProfile.phone && (
                                     <p className="text-gray-500 text-sm mt-1 flex items-center gap-1">
                                       <Phone className="w-3 h-3" />
@@ -542,13 +546,13 @@ const ModernBookingForm = ({
                           )}
 
                           {/* Total Price */}
-                          <div className="bg-gradient-to-r from-green-600/20 via-green-500/10 to-green-600/20 rounded-xl p-4 border border-green-500/20">
+                          <div className="bg-gradient-to-r from-green-50 via-green-100/50 to-green-50 rounded-xl p-4 border border-green-200">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
-                                <Sparkles className="w-5 h-5 text-green-400" />
-                                <span className="text-green-400 font-medium">Σύνολο προς πληρωμή</span>
+                                <Sparkles className="w-5 h-5 text-green-600" />
+                                <span className="text-green-700 font-medium">Σύνολο προς πληρωμή</span>
                               </div>
-                              <span className="text-2xl font-bold text-white">{selectedService?.price} €</span>
+                              <span className="text-2xl font-bold text-gray-900">{selectedService?.price} €</span>
                             </div>
                           </div>
                         </div>
@@ -556,7 +560,7 @@ const ModernBookingForm = ({
                         {/* Action Buttons */}
                         <div className="p-6 pt-0 space-y-3">
                           <Button
-                            className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white font-semibold h-12 rounded-xl shadow-lg shadow-green-500/20"
+                            className="w-full bg-green-600 hover:bg-green-500 text-white font-semibold h-12 rounded-xl shadow-lg shadow-green-500/20"
                             onClick={() => window.location.reload()}
                           >
                             <Home className="w-4 h-4 mr-2" />
@@ -564,7 +568,7 @@ const ModernBookingForm = ({
                           </Button>
                           <Button
                             variant="outline"
-                            className="w-full border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-white h-11 rounded-xl"
+                            className="w-full border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-900 h-11 rounded-xl"
                             onClick={() => window.print()}
                           >
                             Εκτύπωση Επιβεβαίωσης
@@ -583,35 +587,35 @@ const ModernBookingForm = ({
           {step < 4 && (
             <div className="space-y-4 flex flex-col min-h-0 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
               {/* Shop Card */}
-              <Card className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden shadow-2xl flex-shrink-0">
+              <Card className="bg-white border border-gray-200 rounded-3xl overflow-hidden shadow-xl flex-shrink-0">
                 <CardContent className="p-0">
-                  <div className="bg-gradient-to-br from-blue-600/20 via-purple-600/10 to-blue-600/20 p-6 text-center border-b border-white/10">
-                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/20 ring-4 ring-white/5">
-                      <div className="w-16 h-16 rounded-full bg-black/40 backdrop-blur-xl flex items-center justify-center border border-white/20">
-                        <span className="text-xl font-serif italic text-white/90">{businessProfile?.full_name?.charAt(0) || 'B'}</span>
+                  <div className="bg-gradient-to-br from-blue-50 via-purple-50/50 to-blue-50 p-6 text-center border-b border-gray-200">
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/20 ring-4 ring-white">
+                      <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center border border-gray-200">
+                        <span className="text-xl font-serif italic text-gray-900">{businessProfile?.full_name?.charAt(0) || 'B'}</span>
                       </div>
                     </div>
-                    <h2 className="text-lg font-bold text-white mb-1">{businessProfile?.full_name || "Business Name"}</h2>
-                    <Badge variant="secondary" className="bg-white/10 text-white border-0">
+                    <h2 className="text-lg font-bold text-gray-900 mb-1">{businessProfile?.full_name || "Business Name"}</h2>
+                    <Badge variant="secondary" className="bg-gray-100 text-gray-700 border-0">
                       <Star className="w-3 h-3 mr-1 fill-yellow-500 text-yellow-500" />
                       5.0 • 338 κριτικές
                     </Badge>
                   </div>
                   <div className="p-4 space-y-3">
                     {businessProfile?.address && (
-                      <div className="flex items-start gap-2 text-gray-400 text-xs">
-                        <MapPin className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
+                      <div className="flex items-start gap-2 text-gray-600 text-xs">
+                        <MapPin className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
                         <span>{businessProfile.address}</span>
                       </div>
                     )}
                     {businessProfile?.phone && (
-                      <div className="flex items-center gap-2 text-gray-400 text-xs">
-                        <Phone className="w-4 h-4 text-green-400 flex-shrink-0" />
+                      <div className="flex items-center gap-2 text-gray-600 text-xs">
+                        <Phone className="w-4 h-4 text-green-500 flex-shrink-0" />
                         <span>{businessProfile.phone}</span>
                       </div>
                     )}
-                    <div className="flex items-center gap-2 text-gray-400 text-xs">
-                      <Mail className="w-4 h-4 text-purple-400 flex-shrink-0" />
+                    <div className="flex items-center gap-2 text-gray-600 text-xs">
+                      <Mail className="w-4 h-4 text-purple-500 flex-shrink-0" />
                       <span>Επιβεβαίωση μέσω email</span>
                     </div>
                   </div>
@@ -619,9 +623,9 @@ const ModernBookingForm = ({
               </Card>
 
               {/* Summary Card */}
-              <Card className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden shadow-2xl flex-shrink-0">
+              <Card className="bg-white border border-gray-200 rounded-3xl overflow-hidden shadow-xl flex-shrink-0">
                 <CardContent className="p-5">
-                  <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
+                  <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-yellow-500" />
                     Σύνοψη Κράτησης
                   </h3>
@@ -637,26 +641,26 @@ const ModernBookingForm = ({
                           <Scissors className="w-5 h-5" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-white font-medium text-sm truncate">{selectedService.name}</p>
+                          <p className="text-gray-900 font-medium text-sm truncate">{selectedService.name}</p>
                           <p className="text-gray-500 text-xs">{selectedService.duration} λεπτά</p>
                         </div>
-                        <Badge variant="secondary" className="bg-white/10 text-white border-0">
+                        <Badge variant="secondary" className="bg-gray-100 text-gray-900 border-0">
                           {selectedService.price} €
                         </Badge>
                       </div>
 
-                      <Separator className="bg-gray-800" />
+                      <Separator className="bg-gray-200" />
 
                       {/* Date & Time */}
                       {selectedDate && (
                         <div className="space-y-2">
-                          <div className="flex items-center gap-2 text-gray-300">
-                            <CalendarDays className="w-4 h-4 text-blue-400" />
+                          <div className="flex items-center gap-2 text-gray-700">
+                            <CalendarDays className="w-4 h-4 text-blue-500" />
                             <span className="text-sm">{format(selectedDate, 'EEEE d MMMM yyyy')}</span>
                           </div>
                           {selectedTime && (
-                            <div className="flex items-center gap-2 text-gray-300">
-                              <Clock3 className="w-4 h-4 text-green-400" />
+                            <div className="flex items-center gap-2 text-gray-700">
+                              <Clock3 className="w-4 h-4 text-green-500" />
                               <span className="text-sm font-medium">{selectedTime}</span>
                             </div>
                           )}
@@ -666,19 +670,19 @@ const ModernBookingForm = ({
                       {/* Stylist Info */}
                       {selectedStylistId && (
                         <>
-                          <Separator className="bg-gray-800" />
+                          <Separator className="bg-gray-200" />
                           {(() => {
                             const stylist = stylists.find(s => s.id === selectedStylistId);
                             return stylist ? (
                               <div className="flex items-center gap-3">
-                                <Avatar className="h-9 w-9 border border-gray-700">
+                                <Avatar className="h-9 w-9 border border-gray-200">
                                   <AvatarImage src={stylist.avatar_url || undefined} alt={stylist.name} />
                                   <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xs font-semibold">
                                     {stylist.name?.charAt(0).toUpperCase()}
                                   </AvatarFallback>
                                 </Avatar>
                                 <div className="min-w-0">
-                                  <p className="text-white text-sm font-medium truncate">{stylist.name}</p>
+                                  <p className="text-gray-900 text-sm font-medium truncate">{stylist.name}</p>
                                   <p className="text-gray-500 text-xs">{stylist.title || "Στυλίστας"}</p>
                                 </div>
                               </div>
@@ -687,13 +691,13 @@ const ModernBookingForm = ({
                         </>
                       )}
 
-                      <Separator className="bg-gray-800" />
+                      <Separator className="bg-gray-200" />
 
                       {/* Total */}
-                      <div className="bg-gradient-to-r from-blue-600/20 via-purple-600/10 to-blue-600/20 rounded-xl p-3 border border-blue-500/20">
+                      <div className="bg-gradient-to-r from-blue-50 via-purple-50/50 to-blue-50 rounded-xl p-3 border border-blue-200">
                         <div className="flex items-center justify-between">
-                          <span className="text-gray-300 text-sm font-medium">Σύνολο</span>
-                          <span className="text-xl font-bold text-white">{selectedService.price} €</span>
+                          <span className="text-gray-700 text-sm font-medium">Σύνολο</span>
+                          <span className="text-xl font-bold text-gray-900">{selectedService.price} €</span>
                         </div>
                       </div>
                     </div>

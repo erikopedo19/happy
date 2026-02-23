@@ -1,4 +1,4 @@
-import { Calendar, Users, Settings, Home, Package, LogOut, Scissors, Globe, UserCheck, Briefcase, Mail } from "lucide-react";
+import { Calendar, Users, Settings, Home, Package, LogOut, Scissors, Globe, UserCheck, Briefcase, Mail, ChevronUp, User } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -15,9 +15,15 @@ import {
 import { useLocation, Link, useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useOrganization } from "@/hooks/use-organization";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const mainItems = [
   {
@@ -132,6 +138,7 @@ export function AppSidebar() {
     <Sidebar
       className="bg-sidebar border-r border-sidebar-border transition-all duration-300 ease-in-out"
       collapsible="icon"
+      style={{ transform: 'scale(1.2)', transformOrigin: 'top left' }}
     >
       <SidebarHeader className="p-2 border-b border-sidebar-border">
         {isMobile && <SidebarTrigger className="lg:hidden mb-2" />}
@@ -155,33 +162,39 @@ export function AppSidebar() {
 
       <SidebarFooter className="px-3 py-3 border-t border-sidebar-border">
         {sidebar.state !== "collapsed" ? (
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2 p-2 rounded-md bg-sidebar-accent/40 border border-sidebar-border">
-              <Avatar className="h-7 w-7 border border-sidebar-border">
-                <AvatarImage src={user?.user_metadata?.avatar_url} />
-                <AvatarFallback className="bg-sidebar-ring/80 text-white font-semibold">
-                  {userInitials}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 overflow-hidden">
-                {userName && <p className="font-medium text-sm text-foreground truncate">{userName}</p>}
-                {user?.email && (
-                  <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                    <Mail className="h-3 w-3" />
-                    <span className="truncate">{user.email}</span>
-                  </div>
-                )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <div className="flex items-center gap-2 p-2 rounded-md bg-sidebar-accent/40 border border-sidebar-border cursor-pointer hover:bg-sidebar-accent/60 transition-colors">
+                <Avatar className="h-7 w-7 border border-sidebar-border">
+                  <AvatarImage src={user?.user_metadata?.avatar_url} />
+                  <AvatarFallback className="bg-sidebar-ring/80 text-white font-semibold">
+                    {userInitials}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 overflow-hidden">
+                  {userName && <p className="font-medium text-sm text-foreground truncate">{userName}</p>}
+                  {user?.email && (
+                    <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                      <Mail className="h-3 w-3" />
+                      <span className="truncate">{user.email}</span>
+                    </div>
+                  )}
+                </div>
+                <ChevronUp className="h-4 w-4 text-muted-foreground" />
               </div>
-            </div>
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-red-400 hover:text-red-500 hover:bg-red-50/10 h-8 rounded-md"
-              onClick={handleSignOut}
-            >
-              <LogOut className="w-4 h-4 mr-2" />
-              Sign Out
-            </Button>
-          </div>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" side="top" className="w-[--radix-popper-anchor-width]">
+              <DropdownMenuItem onClick={() => navigate("/profile")}>
+                <User className="w-4 h-4 mr-2" />
+                Profile
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleSignOut} className="text-red-500 focus:text-red-500">
+                <LogOut className="w-4 h-4 mr-2" />
+                Sign Out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         ) : (
           <div className="space-y-3">
             <Avatar className="h-8 w-8 mx-auto border border-blue-100">
@@ -190,14 +203,12 @@ export function AppSidebar() {
                 {userInitials}
               </AvatarFallback>
             </Avatar>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="w-full text-red-500 hover:text-red-600 hover:bg-red-50"
+            <button
               onClick={handleSignOut}
+              className="w-full flex justify-center p-2 rounded-md text-red-500 hover:text-red-600 hover:bg-red-50 transition-colors"
             >
               <LogOut className="w-4 h-4" />
-            </Button>
+            </button>
           </div>
         )}
       </SidebarFooter>

@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { Check, ChevronRight } from "lucide-react"
+import { Check } from "lucide-react"
 
 interface Step {
   title: string
@@ -15,14 +15,20 @@ interface PStepperProps {
   currentStep: number
   className?: string
   onStepClick?: (step: number) => void
+  variant?: "dark" | "light"
 }
 
-export function PStepper({ steps, currentStep, className, onStepClick }: PStepperProps) {
+export function PStepper({ steps, currentStep, className, onStepClick, variant = "light" }: PStepperProps) {
+  const isLight = variant === "light"
+  
   return (
     <div className={cn("w-full", className)}>
       <div className="flex items-center justify-between relative">
         {/* Background line */}
-        <div className="absolute top-5 left-0 w-full h-0.5 bg-gray-800 -z-10" />
+        <div className={cn(
+          "absolute top-5 left-0 w-full h-0.5 -z-10",
+          isLight ? "bg-gray-200" : "bg-gray-800"
+        )} />
         
         {/* Active line */}
         <div 
@@ -48,8 +54,12 @@ export function PStepper({ steps, currentStep, className, onStepClick }: PSteppe
                   isCompleted
                     ? "bg-gradient-to-r from-blue-500 to-cyan-400 border-transparent text-white shadow-lg shadow-blue-500/30"
                     : isCurrent
-                      ? "bg-gray-900 border-blue-500 text-blue-400 shadow-lg shadow-blue-500/20 ring-2 ring-blue-500/20"
-                      : "bg-gray-900 border-gray-700 text-gray-500"
+                      ? isLight
+                        ? "bg-white border-blue-500 text-blue-600 shadow-lg shadow-blue-500/20 ring-2 ring-blue-500/20"
+                        : "bg-gray-900 border-blue-500 text-blue-400 shadow-lg shadow-blue-500/20 ring-2 ring-blue-500/20"
+                      : isLight
+                        ? "bg-white border-gray-300 text-gray-600"
+                        : "bg-gray-900 border-gray-700 text-gray-400"
                 )}
               >
                 {isCompleted ? (
@@ -64,12 +74,14 @@ export function PStepper({ steps, currentStep, className, onStepClick }: PSteppe
               <div className="mt-3 text-center">
                 <p className={cn(
                   "text-sm font-medium transition-colors duration-300",
-                  isActive ? "text-white" : "text-gray-500"
+                  isActive 
+                    ? isLight ? "text-gray-900" : "text-white"
+                    : "text-gray-400"
                 )}>
                   {step.title}
                 </p>
                 {step.description && (
-                  <p className="text-xs text-gray-500 mt-0.5 hidden sm:block">
+                  <p className="text-xs text-gray-400 mt-0.5 hidden sm:block">
                     {step.description}
                   </p>
                 )}

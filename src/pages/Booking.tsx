@@ -332,10 +332,30 @@ const Booking = () => {
     try {
       const selectedServiceId = form.watch("service_id");
       const stylistId = selectedStylistId;
-      if (!selectedServiceId) return false;
+      if (!selectedServiceId || !selectedDate) return false;
       
       const selectedService = services.find(s => s.id === selectedServiceId);
       if (!selectedService) return false;
+
+      // Check if selected date is a working day
+      const dayOfWeek = selectedDate.getDay();
+      if (!settings?.working_days?.includes(dayOfWeek)) {
+        return false;
+      }
+
+      // Check if time is in the past (for today)
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const selectedDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+      
+      if (selectedDay.getTime() === today.getTime()) {
+        // It's today - check if the time slot is in the past
+        const [hours, minutes] = time.split(':').map(Number);
+        const slotTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
+        if (slotTime <= now) {
+          return false;
+        }
+      }
 
       const slotInterval = settings?.service_duration || 30;
       const slotsNeeded = Math.ceil(selectedService.duration / slotInterval);
@@ -378,13 +398,32 @@ const Booking = () => {
   };
 
   const getAvailableStylistsForTime = (selectedTime: string) => {
-    if (!selectedTime) return [];
+    if (!selectedTime || !selectedDate) return [];
     
     const selectedServiceId = form.watch("service_id");
     if (!selectedServiceId) return [];
     
     const selectedService = services.find(s => s.id === selectedServiceId);
     if (!selectedService) return [];
+
+    // Check if selected date is a working day
+    const dayOfWeek = selectedDate.getDay();
+    if (!settings?.working_days?.includes(dayOfWeek)) {
+      return [];
+    }
+
+    // Check if time is in the past (for today)
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const selectedDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+    
+    if (selectedDay.getTime() === today.getTime()) {
+      const [hours, minutes] = selectedTime.split(':').map(Number);
+      const slotTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
+      if (slotTime <= now) {
+        return [];
+      }
+    }
 
     const slotInterval = settings?.service_duration || 30;
     const slotsNeeded = Math.ceil(selectedService.duration / slotInterval);
@@ -657,7 +696,9 @@ const Booking = () => {
       });
 
       // Invalidate appointments cache to refresh agenda
+      queryClient.invalidateQueries({ queryKey: ['public-appointments'] });
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['recent-bookings'] });
 
       form.reset();
       setSelectedTime("");

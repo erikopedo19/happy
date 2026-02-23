@@ -52,7 +52,7 @@ const Stylists = () => {
     queryKey: ["stylists", user?.id],
     queryFn: async () => {
       if (!user) return [];
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("stylists")
         .select("*")
         .eq("user_id", user.id)
@@ -73,7 +73,7 @@ const Stylists = () => {
         ? data.specialties.split(",").map(s => s.trim()).filter(Boolean)
         : [];
       
-      const { error } = await supabase.from("stylists").insert({
+      const { error } = await (supabase as any).from("stylists").insert({
         user_id: user.id,
         name: data.name,
         title: data.title || null,
@@ -109,7 +109,7 @@ const Stylists = () => {
         ? data.specialties.split(",").map(s => s.trim()).filter(Boolean)
         : [];
       
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("stylists")
         .update({
           name: data.name,
@@ -140,7 +140,7 @@ const Stylists = () => {
   // Delete stylist mutation
   const deleteStylistMutation = useMutation({
     mutationFn: async (stylistId: string) => {
-      const { error } = await supabase.from("stylists").delete().eq("id", stylistId);
+      const { error } = await (supabase as any).from("stylists").delete().eq("id", stylistId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -192,9 +192,9 @@ const Stylists = () => {
 
   return (
     <SidebarProvider defaultOpen={!isMobile}>
-      <div className="min-h-screen flex w-full bg-background">
+      <div className="h-screen flex w-full bg-background overflow-hidden" style={{ zoom: '1.3' }}>
         <AppSidebar />
-        <main className="flex-1 bg-gradient-to-br from-background via-background to-muted/30">
+        <main className="flex-1 bg-gradient-to-br from-background via-background to-muted/30 flex flex-col overflow-hidden">
           <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-md border-b border-border/50 p-4 lg:hidden shadow-sm">
             <div className="flex items-center justify-between">
               <SidebarTrigger className="hover:bg-muted/80 transition-colors" />
@@ -202,7 +202,8 @@ const Stylists = () => {
               <div></div>
             </div>
           </div>
-          <div className="p-6">
+          
+          <div className="flex-1 overflow-auto p-6">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h1 className="text-3xl font-bold">Stylists</h1>

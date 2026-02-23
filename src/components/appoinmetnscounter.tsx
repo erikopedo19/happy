@@ -1,6 +1,9 @@
 import React from "react";
 import Services from "@/pages/Services";
 import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { user } from "@heroui/react";
 
 
 // this ount appoinments and keep on user state the name of the service 
@@ -21,4 +24,5 @@ const AppointmentsCounter: React.FC<AppointmentsCounterProps> = () => {
     );
 };
 
+//need to recreate
 export default AppointmentsCounter;

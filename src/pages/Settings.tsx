@@ -102,10 +102,10 @@ const Settings = () => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-gray-50">
+      <div className="h-screen flex w-full bg-gray-50 overflow-hidden" style={{ zoom: '1.3' }}>
         <AppSidebar />
-        <main className="flex-1 bg-white">
-          <header className="bg-white border-b border-gray-200 p-4 sticky top-0 z-10">
+        <main className="flex-1 bg-white flex flex-col overflow-hidden">
+          <header className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
             <div className="flex items-center gap-4">
               <SidebarTrigger className="text-gray-600 hover:text-gray-900" />
               <div className="flex items-center gap-2">
@@ -118,7 +118,7 @@ const Settings = () => {
             </div>
           </header>
 
-          <div className="p-6 max-w-4xl mx-auto">
+          <div className="flex-1 overflow-auto p-6 max-w-4xl mx-auto w-full">
             {isLoadingSettings ? (
               <div className="flex justify-center items-center h-64">
                 <Loader2 className="w-8 h-8 animate-spin text-blue-600" />

@@ -71,7 +71,7 @@ const Customers = () => {
     queryKey: ['customers', user?.id],
     queryFn: async () => {
       if (!user) return [];
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('customers')
         .select('id, name, email, phone')
         .eq('user_id', user.id)
@@ -87,7 +87,7 @@ const Customers = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (customerId: string) => {
-      const { error } = await supabase.from('customers').delete().eq('id', customerId);
+      const { error } = await (supabase as any).from('customers').delete().eq('id', customerId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -110,7 +110,7 @@ const Customers = () => {
   const updateMutation = useMutation({
     mutationFn: async (values: CustomerFormData & { id: string }) => {
       const { id, ...updateData } = values;
-      const { error } = await supabase.from('customers').update({ 
+      const { error } = await (supabase as any).from('customers').update({ 
         ...updateData, 
         email: updateData.email || null, 
         phone: updateData.phone || null 
@@ -161,10 +161,10 @@ const Customers = () => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-white">
+      <div className="h-screen flex w-full bg-background overflow-hidden" style={{ zoom: '1.3' }}>
         <AppSidebar />
-        <main className="flex-1 bg-apple-gray-50 animate-fade-in">
-          <header className="bg-white border-b border-apple-gray-200 p-6 glass-effect">
+        <main className="flex-1 bg-apple-gray-50 animate-fade-in flex flex-col overflow-hidden">
+          <header className="bg-white border-b border-apple-gray-200 px-6 py-4 glass-effect flex-shrink-0">
             <div className="flex items-center justify-between animate-slide-in-right">
               <div className="flex items-center gap-4">
                 <SidebarTrigger className="text-apple-gray-600 hover:text-apple-gray-900 hover-scale transition-all duration-200" />
@@ -186,7 +186,7 @@ const Customers = () => {
             </div>
           </header>
 
-          <div className="p-6">
+          <div className="flex-1 overflow-auto p-6">
             <Card className="bg-white border-0 shadow-sm overflow-hidden">
               <Table>
                 <TableHeader>
@@ -198,6 +198,7 @@ const Customers = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
+                  
                   {isLoading ? (
                     Array.from({ length: 5 }).map((_, index) => (
                       <TableRow key={index} className="hover:bg-apple-gray-50/50 transition-colors">
