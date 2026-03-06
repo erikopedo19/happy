@@ -16,7 +16,8 @@ const Auth = () => {
     email: '',
     password: '',
     fullName: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    rememberMe: false
   });
   const { signUp, signIn, user } = useAuth();
   const { toast } = useToast();
@@ -29,9 +30,10 @@ const Auth = () => {
   }, [user, navigate]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = e.target;
     setFormData(prev => ({
       ...prev,
-      [e.target.name]: e.target.value
+      [name]: type === 'checkbox' ? checked : value
     }));
   };
 
@@ -40,7 +42,7 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
-      const { error } = await signIn(formData.email, formData.password);
+      const { error } = await signIn(formData.email, formData.password, formData.rememberMe);
       
       if (error) {
         toast({
@@ -146,6 +148,19 @@ const Auth = () => {
                     onChange={handleInputChange}
                     required
                   />
+                </div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="remember-me"
+                    name="rememberMe"
+                    checked={formData.rememberMe}
+                    onChange={handleInputChange}
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <Label htmlFor="remember-me" className="text-sm font-normal cursor-pointer">
+                    Remember me
+                  </Label>
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
