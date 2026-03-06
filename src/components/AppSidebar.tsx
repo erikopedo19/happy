@@ -1,4 +1,4 @@
-import { Calendar, Users, Settings, Home, Package, LogOut, Scissors, Globe, UserCheck, Briefcase, Mail, ChevronUp, User } from "lucide-react";
+import { Calendar, Users, Settings, Home, Package, LogOut, Scissors, Globe, UserCheck, Briefcase, Mail, ChevronUp, User, Bookmark } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -160,6 +160,18 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="px-3 py-3 border-t border-sidebar-border">
+        {/* Remember Me Indicator */}
+        {sidebar.state !== "collapsed" && (
+          <div className="flex items-center gap-2 px-2 py-1.5 mb-2 text-xs text-muted-foreground">
+            <Bookmark className="h-3 w-3" />
+            <span>Remember: {localStorage.getItem('rememberMe') === 'true' ? 'On' : 'Off'}</span>
+          </div>
+        )}
+        {sidebar.state === "collapsed" && localStorage.getItem('rememberMe') === 'true' && (
+          <div className="flex justify-center mb-2">
+            <Bookmark className="h-3 w-3 text-green-500" />
+          </div>
+        )}
         {sidebar.state !== "collapsed" ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

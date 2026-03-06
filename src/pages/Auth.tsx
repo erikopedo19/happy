@@ -24,6 +24,19 @@ const Auth = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Check if remember me was previously checked
+    const rememberedEmail = localStorage.getItem('rememberEmail');
+    const rememberMe = localStorage.getItem('rememberMe') === 'true';
+    if (rememberedEmail && rememberMe) {
+      setFormData(prev => ({
+        ...prev,
+        email: rememberedEmail,
+        rememberMe: true
+      }));
+    }
+  }, []);
+
+  useEffect(() => {
     if (user) {
       navigate('/agenda');
     }
