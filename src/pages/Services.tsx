@@ -221,7 +221,7 @@ const Services = () => {
     <SidebarProvider>
       <div className="h-screen flex w-full bg-white overflow-hidden">
         <AppSidebar />
-        <main className="flex-1 flex flex-col overflow-hidden" style={{ zoom: '1.3' }}>
+        <main className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 overflow-auto p-6">
             <div className="max-w-6xl mx-auto">
             <div className="flex items-center justify-between mb-8">

@@ -194,7 +194,7 @@ const Stylists = () => {
     <SidebarProvider defaultOpen={!isMobile}>
       <div className="h-screen flex w-full bg-background overflow-hidden">
         <AppSidebar />
-        <main className="flex-1 bg-gradient-to-br from-background via-background to-muted/30 flex flex-col overflow-hidden" style={{ zoom: '1.3' }}>
+        <main className="flex-1 bg-gradient-to-br from-background via-background to-muted/30 flex flex-col overflow-hidden">
           <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-md border-b border-border/50 p-4 lg:hidden shadow-sm">
             <div className="flex items-center justify-between">
               <SidebarTrigger className="hover:bg-muted/80 transition-colors" />
