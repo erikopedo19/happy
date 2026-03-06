@@ -102,9 +102,9 @@ const Settings = () => {
 
   return (
     <SidebarProvider>
-      <div className="h-screen flex w-full bg-gray-50 overflow-hidden" style={{ zoom: '1.3' }}>
+      <div className="h-screen flex w-full bg-gray-50 overflow-hidden">
         <AppSidebar />
-        <main className="flex-1 bg-white flex flex-col overflow-hidden">
+        <main className="flex-1 bg-white flex flex-col overflow-hidden" style={{ zoom: '1.3' }}>
           <header className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
             <div className="flex items-center gap-4">
               <SidebarTrigger className="text-gray-600 hover:text-gray-900" />

@@ -138,7 +138,6 @@ export function AppSidebar() {
     <Sidebar
       className="bg-sidebar border-r border-sidebar-border transition-all duration-300 ease-in-out"
       collapsible="icon"
-      style={{ transform: 'scale(1.2)', transformOrigin: 'top left' }}
     >
       <SidebarHeader className="p-2 border-b border-sidebar-border">
         {isMobile && <SidebarTrigger className="lg:hidden mb-2" />}

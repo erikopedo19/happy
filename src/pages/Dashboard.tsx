@@ -9,9 +9,9 @@ const Dashboard = () => {
 
   return (
     <SidebarProvider defaultOpen={!isMobile}>
-      <div className="h-screen flex w-full bg-[#f8f9fa] overflow-hidden" style={{ zoom: '1.3' }}>
+      <div className="h-screen flex w-full bg-[#f8f9fa] overflow-hidden">
         <AppSidebar />
-        <main className="flex-1 bg-[#f8f9fa] flex flex-col overflow-hidden">
+        <main className="flex-1 bg-[#f8f9fa] flex flex-col overflow-hidden" style={{ zoom: '1.3' }}>
           <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-md border-b border-gray-200 p-4 lg:hidden shadow-sm">
             <div className="flex items-center justify-between">
               <SidebarTrigger className="hover:bg-gray-100 transition-colors text-gray-700" />

@@ -161,9 +161,9 @@ const Customers = () => {
 
   return (
     <SidebarProvider>
-      <div className="h-screen flex w-full bg-background overflow-hidden" style={{ zoom: '1.3' }}>
+      <div className="h-screen flex w-full bg-background overflow-hidden">
         <AppSidebar />
-        <main className="flex-1 bg-apple-gray-50 animate-fade-in flex flex-col overflow-hidden">
+        <main className="flex-1 bg-apple-gray-50 animate-fade-in flex flex-col overflow-hidden" style={{ zoom: '1.3' }}>
           <header className="bg-white border-b border-apple-gray-200 px-6 py-4 glass-effect flex-shrink-0">
             <div className="flex items-center justify-between animate-slide-in-right">
               <div className="flex items-center gap-4">
