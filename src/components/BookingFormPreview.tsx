@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,122 +7,107 @@ import { Calendar, Clock, User, Phone, Mail, MessageSquare } from "lucide-react"
 
 const BookingFormPreview = () => {
   return (
-    <Card className="max-w-md mx-auto shadow-lg">
-      <CardHeader className="text-center bg-gradient-to-r from-blue-50 to-indigo-50">
-        <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-          <span className="text-white font-bold text-xl">B</span>
-        </div>
-        <CardTitle className="text-xl text-gray-900">Book Your Appointment</CardTitle>
-        <p className="text-gray-600 text-sm">BarberPro - Professional Services</p>
-      </CardHeader>
-      
-      <CardContent className="p-6 space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="service" className="flex items-center gap-2">
-            <Calendar className="w-4 h-4" />
-            Select Service
-          </Label>
-          <select 
-            id="service" 
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled
-          >
-            <option>Haircut - $25 (30 min)</option>
-          </select>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="date" className="flex items-center gap-2">
-            <Calendar className="w-4 h-4" />
-            Select Date
-          </Label>
-          <Input
-            id="date"
-            type="date"
-            disabled
-            className="w-full"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="time" className="flex items-center gap-2">
-            <Clock className="w-4 h-4" />
-            Select Time
-          </Label>
-          <select 
-            id="time" 
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled
-          >
-            <option>9:00 AM</option>
-          </select>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="name" className="flex items-center gap-2">
-              <User className="w-4 h-4" />
-              Name
-            </Label>
-            <Input
-              id="name"
-              placeholder="Your name"
-              disabled
-            />
+    <div className="max-w-4xl mx-auto">
+      {/* Cal.com Dark Theme Preview */}
+      <div className="flex min-h-[600px] bg-[#1a1a1a] rounded-2xl overflow-hidden shadow-2xl">
+        {/* Left Panel - Service Info */}
+        <div className="w-[320px] bg-[#1a1a1a] p-8 flex flex-col border-r border-[#2a2a2a]">
+          {/* Profile */}
+          <div className="mb-6">
+            <div className="w-12 h-12 rounded-full overflow-hidden">
+              <img 
+                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=barber`}
+                alt="Business"
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <p className="mt-3 text-sm text-gray-400">BarberPro</p>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="phone" className="flex items-center gap-2">
-              <Phone className="w-4 h-4" />
-              Phone
-            </Label>
-            <Input
-              id="phone"
-              placeholder="Your phone"
-              disabled
-            />
-          </div>
-        </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="email" className="flex items-center gap-2">
-            <Mail className="w-4 h-4" />
-            Email
-          </Label>
-          <Input
-            id="email"
-            type="email"
-            placeholder="your@email.com"
-            disabled
-          />
-        </div>
+          {/* Service Title */}
+          <h2 className="text-xl font-semibold text-white mb-2">
+            [60-min] Premium Haircut
+          </h2>
 
-        <div className="space-y-2">
-          <Label htmlFor="notes" className="flex items-center gap-2">
-            <MessageSquare className="w-4 h-4" />
-            Notes (Optional)
-          </Label>
-          <Textarea
-            id="notes"
-            placeholder="Any special requests or notes..."
-            disabled
-            rows={3}
-          />
-        </div>
-
-        <Button 
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3"
-          disabled
-        >
-          Book Appointment
-        </Button>
-
-        <div className="text-center">
-          <p className="text-xs text-gray-500">
-            This is a preview of your booking form
+          <p className="text-sm text-gray-400 mb-6">
+            Get a professional haircut with styling and hot towel treatment.
           </p>
+
+          {/* Service Details */}
+          <div className="space-y-3 text-sm">
+            <div className="flex items-center gap-2 text-gray-300">
+              <Clock className="w-4 h-4 text-gray-500" />
+              <span>60 min</span>
+            </div>
+            <div className="flex items-center gap-2 text-gray-300">
+              <Mail className="w-4 h-4 text-gray-500" />
+              <span>Google Meet</span>
+            </div>
+            <div className="flex items-center gap-2 text-gray-300">
+              <Calendar className="w-4 h-4 text-gray-500" />
+              <span>Europe/Bucharest</span>
+            </div>
+          </div>
+
+          {/* Price */}
+          <div className="mt-auto pt-6">
+            <p className="text-2xl font-bold text-white">$45</p>
+          </div>
         </div>
-      </CardContent>
-    </Card>
+
+        {/* Center Panel - Preview Message */}
+        <div className="flex-1 bg-[#1a1a1a] p-8 flex items-center justify-center border-r border-[#2a2a2a]">
+          <div className="text-center">
+            <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
+              <Calendar className="w-8 h-8 text-red-500" />
+            </div>
+            <h3 className="text-xl font-semibold text-white mb-2">
+              Booking Form Preview
+            </h3>
+            <p className="text-gray-400 max-w-sm">
+              This is how your booking form will appear to customers. The dark theme with red accents matches the Cal.com design.
+            </p>
+          </div>
+        </div>
+
+        {/* Right Panel - Time Slots Preview */}
+        <div className="w-[280px] bg-[#1a1a1a] p-6">
+          <div className="flex gap-2 mb-6">
+            <span className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#2a2a2a] text-white">
+              12h
+            </span>
+            <span className="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500">
+              24h
+            </span>
+          </div>
+
+          <h4 className="text-sm font-medium text-white mb-4">
+            Tue 03
+          </h4>
+
+          <div className="space-y-2">
+            <div className="w-full py-3 px-4 rounded-xl border border-red-500 bg-red-500/10 text-white font-medium text-center">
+              11:00 AM
+            </div>
+            <div className="w-full py-3 px-4 rounded-xl border border-[#2a2a2a] text-white font-medium text-center">
+              12:00 PM
+            </div>
+            <div className="w-full py-3 px-4 rounded-xl border border-[#2a2a2a] text-white font-medium text-center">
+              1:00 PM
+            </div>
+            <div className="w-full py-3 px-4 rounded-xl border border-[#2a2a2a] text-white font-medium text-center">
+              2:00 PM
+            </div>
+          </div>
+
+          <div className="mt-6">
+            <Button className="w-full bg-red-500 hover:bg-red-600 text-white py-3 rounded-xl font-semibold">
+              Continue
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 
