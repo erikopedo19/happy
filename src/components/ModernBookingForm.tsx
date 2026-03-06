@@ -238,7 +238,7 @@ const ModernBookingForm = ({
                     >
                       <div className="flex justify-between items-start mb-2">
                         <p className="font-medium text-white">{service.name}</p>
-                        <p className="text-lg font-bold text-white">${service.price}</p>
+                        <p className="text-lg font-bold text-white">€{service.price}</p>
                       </div>
                       <p className="text-sm text-gray-500">{service.duration} mins</p>
                     </button>
@@ -278,7 +278,7 @@ const ModernBookingForm = ({
 
                 {/* Price */}
                 <div className="mt-auto pt-6">
-                  <p className="text-2xl font-bold text-white">${selectedService.price}</p>
+                  <p className="text-2xl font-bold text-white">€{selectedService.price}</p>
                 </div>
 
                 {/* Back Button */}
