@@ -219,7 +219,7 @@ const Services = () => {
 
   return (
     <SidebarProvider>
-      <div className="h-screen flex w-full bg-white overflow-hidden">
+      <div className="h-screen flex w-full bg-white overflow-hidden" style={{ transform: 'scale(1.2)', transformOrigin: 'top left', width: '83.33%' }}>
         <AppSidebar />
         <main className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 overflow-auto p-6">

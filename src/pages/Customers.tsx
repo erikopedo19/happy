@@ -161,7 +161,7 @@ const Customers = () => {
 
   return (
     <SidebarProvider>
-      <div className="h-screen flex w-full bg-background overflow-hidden">
+      <div className="h-screen flex w-full bg-background overflow-hidden" style={{ transform: 'scale(1.2)', transformOrigin: 'top left', width: '83.33%' }}>
         <AppSidebar />
         <main className="flex-1 bg-[#f8f9fa] flex flex-col overflow-hidden">
           <header className="bg-white border-b border-apple-gray-200 px-6 py-4 glass-effect flex-shrink-0">

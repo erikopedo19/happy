@@ -102,7 +102,7 @@ const Settings = () => {
 
   return (
     <SidebarProvider>
-      <div className="h-screen flex w-full bg-gray-50 overflow-hidden">
+      <div className="h-screen flex w-full bg-gray-50 overflow-hidden" style={{ transform: 'scale(1.2)', transformOrigin: 'top left', width: '83.33%' }}>
         <AppSidebar />
         <main className="flex-1 bg-white flex flex-col overflow-hidden">
           <header className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">

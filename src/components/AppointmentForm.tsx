@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { X, ChevronLeft, Clock, User, MapPin, Calendar as CalendarIcon, ArrowRight, Video, Globe, Check, Users } from "lucide-react";
+import { X, ChevronLeft, Clock, User, MapPin, Calendar as CalendarIcon, ArrowRight, Video, Globe, Check, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -227,246 +227,181 @@ export function AppointmentForm({ isOpen, onClose, selectedDate, selectedTime }:
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl p-0 overflow-hidden bg-white border-0 shadow-2xl rounded-3xl">
+      <DialogContent className="max-w-5xl p-0 overflow-hidden bg-[#1a1a1a] border-0 shadow-2xl rounded-none">
         <DialogTitle className="sr-only">Book Appointment</DialogTitle>
         
         <div className="flex min-h-[600px]">
-          {/* Left Panel - Business Info */}
-          <div className="w-[380px] bg-gray-50 p-8 flex flex-col border-r border-gray-200">
+          {/* Left Panel - Service Info */}
+          <div className="w-[320px] bg-[#1a1a1a] p-8 flex flex-col border-r border-[#2a2a2a]">
             {/* Close button */}
             <button
               onClick={handleClose}
-              className="absolute top-4 left-4 w-8 h-8 flex items-center justify-center rounded-full bg-white shadow-sm text-gray-500 hover:text-gray-900 transition-colors z-10"
+              className="absolute top-4 left-4 w-8 h-8 flex items-center justify-center rounded-full bg-[#2a2a2a] text-gray-400 hover:text-white transition-colors z-10"
             >
               <X className="h-4 w-4" />
             </button>
 
-            {/* Profile Image */}
+            {/* Profile */}
             <div className="mt-8 mb-6">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-xl font-semibold shadow-lg">
-                {profile?.full_name?.charAt(0) || user?.email?.charAt(0) || 'B'}
+              <div className="w-12 h-12 rounded-full overflow-hidden">
+                <img 
+                  src={profile?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile?.full_name || 'user'}`}
+                  alt={profile?.full_name || 'User'}
+                  className="w-full h-full object-cover"
+                />
               </div>
+              <p className="mt-3 text-sm text-gray-400">{profile?.full_name || profile?.business_name || 'Your Business'}</p>
             </div>
 
-            {/* Business Name */}
-            <h2 className="text-xl font-semibold text-gray-900 mb-1">
-              {profile?.full_name || profile?.business_name || 'Your Barbershop'}
+            {/* Service Title */}
+            <h2 className="text-xl font-semibold text-white mb-2">
+              {selectedService ? `[${selectedService.duration}-min] ${selectedService.name}` : 'Select a Service'}
             </h2>
-            
-            {/* Service Info */}
-            {selectedService ? (
-              <div className="mt-6">
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">{selectedService.name}</h3>
-                <div className="flex items-center gap-4 text-gray-600 text-sm mb-4">
-                  <div className="flex items-center gap-1.5">
-                    <Clock className="w-4 h-4" />
-                    <span>{selectedService.duration} mins</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <MapPin className="w-4 h-4" />
-                    <span>In-person</span>
-                  </div>
-                </div>
-                <p className="text-3xl font-bold text-gray-900">${selectedService.price}</p>
-              </div>
-            ) : (
-              <div className="mt-6">
-                <p className="text-gray-600">Select a service to continue</p>
-              </div>
+
+            {/* Service Description */}
+            {selectedService?.description && (
+              <p className="text-sm text-gray-400 mb-6">{selectedService.description}</p>
             )}
 
-            {/* Selected Date/Time Summary */}
-            {selectedTimeSlot && (
-              <div className="mt-6 p-4 bg-white rounded-2xl border border-gray-200">
-                <div className="flex items-center gap-3 text-gray-900">
-                  <CalendarIcon className="w-5 h-5 text-violet-600" />
-                  <div>
-                    <p className="font-semibold">{format(selectedDateObj, 'EEEE, MMMM d')}</p>
-                    <p className="text-sm text-gray-600">{selectedTimeSlot}</p>
-                  </div>
+            {/* Service Details */}
+            {selectedService && (
+              <div className="space-y-3 text-sm">
+                <div className="flex items-center gap-2 text-gray-300">
+                  <Clock className="w-4 h-4 text-gray-500" />
+                  <span>{selectedService.duration} min</span>
+                </div>
+                <div className="flex items-center gap-2 text-gray-300">
+                  <Video className="w-4 h-4 text-gray-500" />
+                  <span>Google Meet</span>
+                </div>
+                <div className="flex items-center gap-2 text-gray-300">
+                  <Globe className="w-4 h-4 text-gray-500" />
+                  <span>Europe/Bucharest</span>
                 </div>
               </div>
             )}
 
-            {/* Spacer */}
-            <div className="flex-1" />
-
-            {/* Back button for details step */}
-            {step === "details" && (
-              <button
-                onClick={() => setStep("datetime")}
-                className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors mb-4"
-              >
-                <ChevronLeft className="w-4 h-4" />
-                <span>Back to calendar</span>
-              </button>
+            {/* Price */}
+            {selectedService && (
+              <div className="mt-auto pt-6">
+                <p className="text-2xl font-bold text-white">${selectedService.price}</p>
+              </div>
             )}
           </div>
 
-          {/* Right Panel - Calendar/Time/Form */}
-          <div className="flex-1 p-8 bg-white">
+          {/* Center Panel - Calendar */}
+          <div className="flex-1 bg-[#1a1a1a] p-8 border-r border-[#2a2a2a]">
             {step === "datetime" ? (
               <div className="h-full flex flex-col">
-                <h3 className="text-xl font-semibold text-gray-900 mb-6">
-                  Select Date & Time
-                </h3>
-
-                {/* Service Selection */}
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Select Service</label>
-                  <div className="grid grid-cols-1 gap-2">
-                    {services.map((service: Service) => (
-                      <button
-                        key={service.id}
-                        onClick={() => setServiceId(service.id)}
-                        className={cn(
-                          "flex items-center justify-between p-4 rounded-xl border-2 transition-all text-left",
-                          serviceId === service.id
-                            ? "border-violet-600 bg-violet-50"
-                            : "border-gray-200 hover:border-gray-300"
-                        )}
-                      >
-                        <div>
-                          <p className="font-semibold text-gray-900">{service.name}</p>
-                          <p className="text-sm text-gray-600">{service.duration} mins</p>
-                        </div>
-                        <p className="font-bold text-gray-900">${service.price}</p>
-                      </button>
-                    ))}
+                {/* Month Navigation */}
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-medium text-white">
+                    {format(currentMonth, 'MMMM')} <span className="text-gray-500">{format(currentMonth, 'yyyy')}</span>
+                  </h3>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#2a2a2a] transition-colors text-gray-400"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#2a2a2a] transition-colors text-gray-400"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
 
-                {selectedService && (
-                  <>
-                    {/* Calendar */}
-                    <div className="mb-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <h4 className="font-semibold text-gray-900">
-                          {format(currentMonth, 'MMMM yyyy')}
-                        </h4>
-                        <div className="flex gap-1">
-                          <button
-                            onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
-                          >
-                            <ChevronLeft className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
-                          >
-                            <ArrowRight className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Week days header */}
-                      <div className="grid grid-cols-7 gap-1 mb-2">
-                        {weekDays.map(day => (
-                          <div key={day} className="text-center text-xs font-medium text-gray-500 py-2">
-                            {day}
+                {/* Service Selection */}
+                {!selectedService && (
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-400 mb-3">Select Service</label>
+                    <div className="grid grid-cols-1 gap-2">
+                      {services.map((service: Service) => (
+                        <button
+                          key={service.id}
+                          onClick={() => setServiceId(service.id)}
+                          className={cn(
+                            "flex items-center justify-between p-4 rounded-xl border transition-all text-left",
+                            serviceId === service.id
+                              ? "border-red-500 bg-[#2a2a2a]"
+                              : "border-[#2a2a2a] hover:border-gray-600"
+                          )}
+                        >
+                          <div>
+                            <p className="font-medium text-white">{service.name}</p>
+                            <p className="text-sm text-gray-500">{service.duration} mins</p>
                           </div>
-                        ))}
-                      </div>
-
-                      {/* Calendar grid */}
-                      <div className="grid grid-cols-7 gap-1">
-                        {calendarDays.map((day, index) => {
-                          const isSelected = isSameDay(day, selectedDateObj);
-                          const isCurrentMonth = isSameMonth(day, currentMonth);
-                          const isTodayDate = isToday(day);
-                          
-                          return (
-                            <button
-                              key={day.toISOString()}
-                              onClick={() => handleDateSelect(day)}
-                              className={cn(
-                                "aspect-square flex items-center justify-center text-sm font-medium rounded-lg transition-all",
-                                isSelected
-                                  ? "bg-gray-900 text-white"
-                                  : isTodayDate
-                                  ? "bg-violet-100 text-violet-700"
-                                  : isCurrentMonth
-                                  ? "text-gray-900 hover:bg-gray-100"
-                                  : "text-gray-400"
-                              )}
-                            >
-                              {format(day, 'd')}
-                            </button>
-                          );
-                        })}
-                      </div>
+                          <p className="font-bold text-white">${service.price}</p>
+                        </button>
+                      ))}
                     </div>
+                  </div>
+                )}
 
-                    {/* Time slots */}
-                    <div className="mb-6">
-                      <h4 className="font-semibold text-gray-900 mb-3">
-                        {format(selectedDateObj, 'EEEE, MMMM d')}
-                      </h4>
-                      <div className="grid grid-cols-3 gap-2">
-                        {timeSlots.map((time) => (
-                          <button
-                            key={time}
-                            onClick={() => handleTimeSelect(time)}
-                            className={cn(
-                              "py-3 px-4 rounded-xl border-2 font-medium transition-all",
-                              selectedTimeSlot === time
-                                ? "border-gray-900 bg-gray-900 text-white"
-                                : "border-gray-200 hover:border-gray-400 text-gray-900"
-                            )}
-                          >
-                            {time}
-                          </button>
-                        ))}
-                      </div>
+                {/* Week days header */}
+                <div className="grid grid-cols-7 gap-1 mb-2">
+                  {weekDays.map(day => (
+                    <div key={day} className="text-center text-xs font-medium text-gray-500 py-2">
+                      {day}
                     </div>
+                  ))}
+                </div>
 
-                    {/* Continue Button */}
-                    <div className="mt-auto">
+                {/* Calendar grid */}
+                <div className="grid grid-cols-7 gap-2">
+                  {calendarDays.map((day) => {
+                    const isSelected = isSameDay(day, selectedDateObj);
+                    const isCurrentMonth = isSameMonth(day, currentMonth);
+                    
+                    return (
                       <button
-                        onClick={handleContinue}
-                        disabled={!selectedTimeSlot}
+                        key={day.toISOString()}
+                        onClick={() => handleDateSelect(day)}
+                        disabled={!isCurrentMonth}
                         className={cn(
-                          "w-full py-4 px-6 rounded-full font-semibold text-white transition-all flex items-center justify-center gap-2",
-                          selectedTimeSlot
-                            ? "bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 hover:opacity-90 shadow-lg shadow-violet-500/25"
-                            : "bg-gray-300 cursor-not-allowed"
+                          "aspect-square flex items-center justify-center text-sm font-medium rounded-lg transition-all",
+                          isSelected
+                            ? "bg-red-500 text-white"
+                            : !isCurrentMonth
+                            ? "text-gray-600"
+                            : "text-white hover:bg-[#2a2a2a]"
                         )}
                       >
-                        Continue
-                        <ArrowRight className="w-5 h-5" />
+                        {format(day, 'd')}
                       </button>
-                    </div>
-                  </>
-                )}
+                    );
+                  })}
+                </div>
               </div>
-            ) : (
-              /* Details Step */
+            ) : step === "details" ? (
               <div className="h-full flex flex-col">
-                <h3 className="text-xl font-semibold text-gray-900 mb-6">
+                <h3 className="text-xl font-semibold text-white mb-6">
                   Enter Your Details
                 </h3>
 
                 <form onSubmit={handleSubmit} className="space-y-4 flex-1">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-400 mb-2">
                       Full Name *
                     </label>
                     <div className="relative">
-                      <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
                       <input
                         type="text"
                         value={customerName}
                         onChange={(e) => setCustomerName(e.target.value)}
                         placeholder="John Doe"
                         required
-                        className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-xl focus:border-violet-500 focus:outline-none transition-colors text-gray-900"
+                        className="w-full pl-12 pr-4 py-4 bg-[#2a2a2a] border border-[#3a3a3a] rounded-xl focus:border-red-500 focus:outline-none transition-colors text-white placeholder-gray-500"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-400 mb-2">
                       Email Address
                     </label>
                     <input
@@ -474,28 +409,36 @@ export function AppointmentForm({ isOpen, onClose, selectedDate, selectedTime }:
                       value={customerEmail}
                       onChange={(e) => setCustomerEmail(e.target.value)}
                       placeholder="john@example.com"
-                      className="w-full px-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-xl focus:border-violet-500 focus:outline-none transition-colors text-gray-900"
+                      className="w-full px-4 py-4 bg-[#2a2a2a] border border-[#3a3a3a] rounded-xl focus:border-red-500 focus:outline-none transition-colors text-white placeholder-gray-500"
                     />
                     <p className="text-xs text-gray-500 mt-1">
                       We'll send a confirmation email to this address.
                     </p>
                   </div>
 
-                  {/* Book Button */}
+                  <button
+                    type="button"
+                    onClick={() => setStep("datetime")}
+                    className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mt-4"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <span>Back to calendar</span>
+                  </button>
+
                   <div className="mt-auto pt-6">
                     <button
                       type="submit"
                       disabled={isLoading || !customerName}
                       className={cn(
-                        "w-full py-4 px-6 rounded-full font-semibold text-white transition-all flex items-center justify-center gap-2",
+                        "w-full py-4 px-6 rounded-xl font-semibold text-white transition-all flex items-center justify-center gap-2",
                         customerName && !isLoading
-                          ? "bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 hover:opacity-90 shadow-lg shadow-violet-500/25"
-                          : "bg-gray-300 cursor-not-allowed"
+                          ? "bg-red-500 hover:bg-red-600"
+                          : "bg-gray-600 cursor-not-allowed"
                       )}
                     >
                       {isLoading ? (
                         <>
-                          <div className="w-5 h-5 border-2 border-white/30  border-t-white rounded-full animate-spin" />
+                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                           Booking...
                         </>
                       ) : (
@@ -508,8 +451,86 @@ export function AppointmentForm({ isOpen, onClose, selectedDate, selectedTime }:
                   </div>
                 </form>
               </div>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-center">
+                <div className="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center mb-6">
+                  <Check className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold text-white mb-2">You're Booked!</h3>
+                <p className="text-gray-400 mb-6">
+                  Your appointment for {format(selectedDateObj, 'MMMM d')} at {selectedTimeSlot} is confirmed.
+                </p>
+                <button
+                  onClick={handleClose}
+                  className="px-8 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition-colors"
+                >
+                  Done
+                </button>
+              </div>
             )}
           </div>
+
+          {/* Right Panel - Time Slots */}
+          {step === "datetime" && selectedService && (
+            <div className="w-[280px] bg-[#1a1a1a] p-6">
+              <div className="flex gap-2 mb-6">
+                <button
+                  onClick={() => setTimeFormat("12h")}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
+                    timeFormat === "12h" ? "bg-[#2a2a2a] text-white" : "text-gray-500 hover:text-white"
+                  )}
+                >
+                  12h
+                </button>
+                <button
+                  onClick={() => setTimeFormat("24h")}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
+                    timeFormat === "24h" ? "bg-[#2a2a2a] text-white" : "text-gray-500 hover:text-white"
+                  )}
+                >
+                  24h
+                </button>
+              </div>
+
+              <h4 className="text-sm font-medium text-white mb-4">
+                {format(selectedDateObj, 'EEE dd')}
+              </h4>
+
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                {timeSlots.map((time) => (
+                  <button
+                    key={time}
+                    onClick={() => handleTimeSelect(time)}
+                    className={cn(
+                      "w-full py-3 px-4 rounded-xl border font-medium transition-all text-center",
+                      selectedTimeSlot === time
+                        ? "border-red-500 bg-red-500/10 text-white"
+                        : "border-[#2a2a2a] hover:border-gray-600 text-white"
+                    )}
+                  >
+                    {formatTime(time)}
+                  </button>
+                ))}
+              </div>
+
+              <div className="mt-6">
+                <button
+                  onClick={handleContinue}
+                  disabled={!selectedTimeSlot}
+                  className={cn(
+                    "w-full py-3 px-6 rounded-xl font-semibold text-white transition-all",
+                    selectedTimeSlot
+                      ? "bg-red-500 hover:bg-red-600"
+                      : "bg-gray-600 cursor-not-allowed"
+                  )}
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
