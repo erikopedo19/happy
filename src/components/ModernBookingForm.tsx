@@ -67,6 +67,7 @@ const ModernBookingForm = ({
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [timeFormat, setTimeFormat] = useState<"12h" | "24h">("12h");
   const [selectedServiceId, setSelectedServiceId] = useState<string>("");
+  const [animationDirection, setAnimationDirection] = useState<"forward" | "backward">("forward");
   
   const selectedService = services.find(s => s.id === selectedServiceId);
   const selectedStylist = stylists.find(s => s.id === selectedStylistId);
@@ -100,6 +101,7 @@ const ModernBookingForm = ({
   const handleServiceSelect = (serviceId: string) => {
     setSelectedServiceId(serviceId);
     form.setValue("service_id", serviceId);
+    setAnimationDirection("forward");
     setStep("datetime");
   };
 
@@ -117,16 +119,23 @@ const ModernBookingForm = ({
   const handleStylistSelect = (stylistId: string) => {
     setSelectedStylistId(stylistId);
     form.setValue("stylist_id", stylistId);
+    setAnimationDirection("forward");
     setStep("details");
   };
 
   const handleContinue = () => {
     if (!selectedTime) return;
+    setAnimationDirection("forward");
     if (stylists.length > 0) {
       setStep("stylist");
     } else {
       setStep("details");
     }
+  };
+
+  const handleBack = (targetStep: "service" | "datetime" | "stylist") => {
+    setAnimationDirection("backward");
+    setStep(targetStep);
   };
 
   const formatTime = (time: string) => {
@@ -259,8 +268,14 @@ const ModernBookingForm = ({
         /* Multi-step Booking Form - Centered */
         <div className="min-h-screen flex items-center justify-center p-4 md:p-8">
           <div className="w-full max-w-6xl">
-        {/* Main 3-Panel Layout */}
-        <div className="flex flex-col lg:flex-row min-h-[600px] bg-[#1a1a1a] rounded-2xl overflow-hidden shadow-2xl">
+        {/* Main 3-Panel Layout with Animation */}
+        <div 
+          className={cn(
+            "flex flex-col lg:flex-row min-h-[600px] bg-[#1a1a1a] rounded-2xl overflow-hidden shadow-2xl transition-all duration-300 ease-out",
+            animationDirection === "forward" ? "animate-in slide-in-from-right-4" : "animate-in slide-in-from-left-4"
+          )}
+          key={step}
+        >
           
           {/* Left Panel - Service Info */}
           <div className="w-full lg:w-[320px] bg-[#1a1a1a] p-6 lg:p-8 flex flex-col border-b lg:border-b-0 lg:border-r border-[#2a2a2a]">
@@ -339,7 +354,7 @@ const ModernBookingForm = ({
 
                 {/* Back Button */}
                 <button
-                  onClick={() => setStep("service")}
+                  onClick={() => handleBack("service")}
                   className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mt-4 text-sm"
                 >
                   <ChevronLeft className="w-4 h-4" />
@@ -549,7 +564,7 @@ const ModernBookingForm = ({
                 </div>
 
                 <button
-                  onClick={() => setStep("datetime")}
+                  onClick={() => handleBack("datetime")}
                   className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mt-4 text-sm"
                 >
                   <ChevronLeft className="w-4 h-4" />
@@ -643,7 +658,7 @@ const ModernBookingForm = ({
                 </Form>
 
                 <button
-                  onClick={() => stylists.length > 0 ? setStep("stylist") : setStep("datetime")}
+                  onClick={() => handleBack(stylists.length > 0 ? "stylist" : "datetime")}
                   className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mt-4 text-sm"
                 >
                   <ChevronLeft className="w-4 h-4" />

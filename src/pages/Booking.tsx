@@ -695,10 +695,13 @@ const Booking = () => {
         description: "Your appointment has been scheduled successfully. Check your email for confirmation.",
       });
 
-      // Invalidate appointments cache to refresh agenda
-      queryClient.invalidateQueries({ queryKey: ['public-appointments'] });
-      queryClient.invalidateQueries({ queryKey: ['appointments'] });
-      queryClient.invalidateQueries({ queryKey: ['recent-bookings'] });
+      // Invalidate ALL appointment-related queries to refresh agenda immediately
+      await queryClient.invalidateQueries({ queryKey: ['appointments'], exact: false });
+      await queryClient.invalidateQueries({ queryKey: ['public-appointments'], exact: false });
+      await queryClient.invalidateQueries({ queryKey: ['recent-bookings'], exact: false });
+      
+      // Force immediate refetch
+      await queryClient.refetchQueries({ queryKey: ['appointments'], exact: false });
 
       form.reset();
       setSelectedTime("");

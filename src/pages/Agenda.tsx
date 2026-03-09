@@ -88,7 +88,7 @@ const Agenda = () => {
     enabled: !!user,
   });
 
-  // Fetch appointments for current range
+  // Fetch appointments for current range - with automatic refresh
   const { data: appointments = [] } = useQuery<Appointment[]>({
     queryKey: ['appointments', format(fetchStartDate, 'yyyy-MM-dd'), format(fetchEndDate, 'yyyy-MM-dd')],
     queryFn: async () => {
@@ -119,6 +119,8 @@ const Agenda = () => {
       return data || [];
     },
     enabled: !!user,
+    staleTime: 0, // Always consider data stale to enable immediate refetch
+    refetchInterval: 30000, // Refetch every 30 seconds as backup
   });
 
   const hydratedAppointments = useMemo(
@@ -183,10 +185,16 @@ const Agenda = () => {
           table: 'appointments',
           filter: `user_id=eq.${user.id}`,
         },
-        (payload) => {
+        async (payload) => {
           console.log('Real-time appointment change:', payload);
-          queryClient.invalidateQueries({ queryKey: ['appointments'] });
+          // Invalidate ALL appointment-related queries to refresh agenda immediately
+          await queryClient.invalidateQueries({ queryKey: ['appointments'], exact: false });
+          await queryClient.invalidateQueries({ queryKey: ['public-appointments'], exact: false });
+          await queryClient.invalidateQueries({ queryKey: ['recent-bookings'], exact: false });
           
+          // Force immediate refetch
+          await queryClient.refetchQueries({ queryKey: ['appointments'], exact: false });
+
           if (payload.eventType === 'INSERT') {
             toast({
               title: "New Booking!",

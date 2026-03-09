@@ -198,7 +198,13 @@ export function AppointmentForm({ isOpen, onClose, selectedDate, selectedTime }:
         description: `Your appointment is confirmed for ${format(selectedDateObj, 'MMMM d')} at ${selectedTimeSlot}.`,
       });
 
-      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['appointments'], exact: false });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const key = query.queryKey[0];
+          return key === 'appointments' || key === 'public-appointments';
+        }
+      });
       handleClose();
     } catch (error) {
       console.error('Error creating appointment:', error);
