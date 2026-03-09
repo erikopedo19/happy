@@ -201,8 +201,64 @@ const ModernBookingForm = ({
   }
 
   return (
-    <div className="min-h-screen bg-[#1a1a1a] text-white p-4 md:p-8">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-[#0f0f0f] text-white">
+      {step === "service" ? (
+        /* Service Selection - Centered Single Page */
+        <div className="min-h-screen flex items-center justify-center p-4 md:p-8">
+          <div className="w-full max-w-md">
+            {/* Business Profile Header */}
+            <div className="text-center mb-8">
+              <div className="w-16 h-16 rounded-full overflow-hidden mx-auto mb-4 ring-2 ring-[#2a2a2a]">
+                <img 
+                  src={businessProfile?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${businessProfile?.full_name || 'user'}`}
+                  alt={businessProfile?.full_name || 'Business'}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <h1 className="text-xl font-semibold text-white mb-1">{businessProfile?.full_name || 'Book an Appointment'}</h1>
+              <p className="text-gray-400 text-sm">Select a service to continue</p>
+            </div>
+
+            {/* Services List */}
+            <div className="space-y-3">
+              {services.map((service) => (
+                <button
+                  key={service.id}
+                  onClick={() => handleServiceSelect(service.id)}
+                  className={cn(
+                    "w-full p-4 rounded-2xl border text-left transition-all bg-[#1a1a1a] hover:bg-[#1f1f1f]",
+                    selectedServiceId === service.id
+                      ? "border-red-500 ring-1 ring-red-500/20"
+                      : "border-[#2a2a2a] hover:border-gray-600"
+                  )}
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex-1">
+                      <p className="font-medium text-white text-base">{service.name}</p>
+                      {service.description && (
+                        <p className="text-sm text-gray-500 mt-1 line-clamp-2">{service.description}</p>
+                      )}
+                    </div>
+                    <p className="text-lg font-bold text-white ml-4">€{service.price}</p>
+                  </div>
+                  <div className="flex items-center gap-2 text-gray-500 text-sm">
+                    <Clock className="w-4 h-4" />
+                    <span>{service.duration} mins</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {/* Footer */}
+            <p className="text-center text-gray-500 text-xs mt-8">
+              Powered by Cutzio
+            </p>
+          </div>
+        </div>
+      ) : (
+        /* Multi-step Booking Form - Centered */
+        <div className="min-h-screen flex items-center justify-center p-4 md:p-8">
+          <div className="w-full max-w-6xl">
         {/* Main 3-Panel Layout */}
         <div className="flex flex-col lg:flex-row min-h-[600px] bg-[#1a1a1a] rounded-2xl overflow-hidden shadow-2xl">
           
@@ -598,6 +654,8 @@ const ModernBookingForm = ({
           </div>
         </div>
       </div>
+    </div>
+      )}
     </div>
   );
 };
