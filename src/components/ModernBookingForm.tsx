@@ -31,6 +31,8 @@ interface ModernBookingFormProps {
   timeSlots: string[];
   isTimeSlotAvailable: (time: string) => boolean;
   getAvailableStylistsForTime?: (time: string) => any[];
+  getAvailableDatesForStylist?: (stylistId: string) => Date[];
+  getAvailableTimesForStylistAndDate?: (stylistId: string, date: Date) => string[];
   onSubmit: (values: any) => Promise<boolean | void>;
   isLoading: boolean;
   businessProfile: {
@@ -66,13 +68,30 @@ const ModernBookingForm = ({
   const [selectedStylistId, setSelectedStylistId] = useState<string>("");
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [timeFormat, setTimeFormat] = useState<"12h" | "24h">("12h");
-  const [selectedServiceId, setSelectedServiceId] = useState<string>("");
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
   const [animationDirection, setAnimationDirection] = useState<"forward" | "backward">("forward");
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [accentColor, setAccentColor] = useState<string>("#ef4444"); // Default red
   const [showThemeControls, setShowThemeControls] = useState(false);
   
-  const selectedService = services.find(s => s.id === selectedServiceId);
+  // Derived state for selected services
+  const selectedServices = useMemo(() => 
+    services.filter(s => selectedServiceIds.includes(s.id)),
+    [services, selectedServiceIds]
+  );
+  
+  const totalDuration = useMemo(() => 
+    selectedServices.reduce((sum, s) => sum + s.duration, 0),
+    [selectedServices]
+  );
+  
+  const totalPrice = useMemo(() => 
+    selectedServices.reduce((sum, s) => sum + s.price, 0),
+    [selectedServices]
+  );
+  
+  // For backward compatibility - first selected service
+  const selectedService = selectedServices[0];
   const selectedStylist = stylists.find(s => s.id === selectedStylistId);
 
   // Get available stylists for selected time
@@ -80,16 +99,19 @@ const ModernBookingForm = ({
     ? getAvailableStylistsForTime(selectedTime)
     : stylists;
 
-  // Filter stylists that are available for the selected service
-  const availableStylistsForService = selectedServiceId
-    ? (stylistServices.length > 0 
-        ? stylists.filter(stylist =>
-            stylistServices.some(ss =>
-              ss.stylist_id === stylist.id && ss.service_id === selectedServiceId
-            )
-          )
-        : stylists)
-    : stylists;
+  // Filter stylists that are available for ALL selected services
+  const availableStylistsForService = useMemo(() => {
+    if (selectedServiceIds.length === 0) return stylists;
+    if (stylistServices.length === 0) return stylists;
+    
+    return stylists.filter(stylist =>
+      selectedServiceIds.every(serviceId =>
+        stylistServices.some(ss =>
+          ss.stylist_id === stylist.id && ss.service_id === serviceId
+        )
+      )
+    );
+  }, [stylists, stylistServices, selectedServiceIds]);
 
   // Calendar days - show full weeks including prev/next month days
   const calendarDays = useMemo(() => {
@@ -137,11 +159,24 @@ const ModernBookingForm = ({
   const accentTextStyle = { color: accentColor };
   const accentBgLightStyle = { backgroundColor: `${accentColor}20`, borderColor: accentColor };
 
-  const handleServiceSelect = (serviceId: string) => {
-    setSelectedServiceId(serviceId);
-    form.setValue("service_id", serviceId);
+  const handleServiceToggle = (serviceId: string) => {
+    setSelectedServiceIds(prev => {
+      if (prev.includes(serviceId)) {
+        return prev.filter(id => id !== serviceId);
+      }
+      return [...prev, serviceId];
+    });
+  };
+
+  const handleServiceContinue = () => {
+    if (selectedServiceIds.length === 0) return;
+    form.setValue("service_ids", selectedServiceIds);
     setAnimationDirection("forward");
     setStep("datetime");
+  };
+
+  const removeService = (serviceId: string) => {
+    setSelectedServiceIds(prev => prev.filter(id => id !== serviceId));
   };
 
   const handleDateSelect = (date: Date) => {
@@ -174,6 +209,12 @@ const ModernBookingForm = ({
 
   const handleBack = (targetStep: "service" | "datetime" | "stylist") => {
     setAnimationDirection("backward");
+    if (targetStep === "service") {
+      // Clear date and time when going back to service selection
+      setSelectedDate(undefined);
+      setSelectedTime("");
+      setSelectedStylistId("");
+    }
     setStep(targetStep);
   };
 
@@ -214,18 +255,26 @@ const ModernBookingForm = ({
           <p className="text-gray-400 mb-6">
             Ευχαριστούμε για την προτίμηση. Θα λάβετε email επιβεβαίωσης.
           </p>
-          <div className="bg-[#2a2a2a] rounded-2xl p-6 mb-6 max-w-md mx-auto">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="w-12 h-12 rounded-full overflow-hidden">
-                <img 
-                  src={businessProfile?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${businessProfile?.full_name || 'user'}`}
-                  alt={businessProfile?.full_name || 'Business'}
-                  className="w-full h-full object-cover"
-                />
+          <div className={`bg-[#2a2a2a] rounded-2xl p-6 mb-6 max-w-md mx-auto ${theme === "dark" ? "" : "bg-gray-100"}`}>
+            {selectedServices.map((service, index) => (
+              <div key={service.id} className={`flex items-center gap-4 mb-4 ${index > 0 ? 'pt-4 border-t border-gray-700' : ''}`}>
+                <div className="w-12 h-12 rounded-full overflow-hidden">
+                  <img 
+                    src={businessProfile?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${businessProfile?.full_name || 'user'}`}
+                    alt={businessProfile?.full_name || 'Business'}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="text-left flex-1">
+                  <p className="text-white font-medium">{service.name}</p>
+                  <p className="text-gray-400 text-sm">{service.duration} λεπτά · €{service.price}</p>
+                </div>
               </div>
-              <div className="text-left">
-                <p className="text-white font-medium">{selectedService?.name}</p>
-                <p className="text-gray-400 text-sm">{selectedService?.duration} λεπτά</p>
+            ))}
+            <div className="border-t border-gray-700 pt-4 mt-4">
+              <div className="flex justify-between items-center mb-2">
+                <p className="text-gray-400 text-sm">Σύνολο</p>
+                <p className="text-white font-medium">{totalDuration} λεπτά · €{totalPrice}</p>
               </div>
             </div>
             <div className="flex items-center gap-2 text-gray-300 text-sm mb-2">
@@ -333,14 +382,14 @@ const ModernBookingForm = ({
               {services.map((service) => (
                 <button
                   key={service.id}
-                  onClick={() => handleServiceSelect(service.id)}
+                  onClick={() => handleServiceToggle(service.id)}
                   className={cn(
                     `w-full p-4 rounded-2xl border text-left transition-all ${getCardBgClass()} hover:${getCardBgClassSecondary()}`,
-                    selectedServiceId === service.id
+                    selectedServiceIds.includes(service.id)
                       ? "ring-1"
                       : getBorderClass()
                   )}
-                  style={selectedServiceId === service.id ? accentBgLightStyle : {}}
+                  style={selectedServiceIds.includes(service.id) ? accentBgLightStyle : {}}
                 >
                   <div className="flex justify-between items-start mb-2">
                     <div className="flex-1">
@@ -349,7 +398,14 @@ const ModernBookingForm = ({
                         <p className={`text-sm ${getTextMutedClass()} mt-1 line-clamp-2`}>{service.description}</p>
                       )}
                     </div>
-                    <p className={`text-lg font-bold ${getTextClass()} ml-4`}>€{service.price}</p>
+                    <div className="flex items-center gap-2">
+                      {selectedServiceIds.includes(service.id) && (
+                        <div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs" style={accentStyle}>
+                          <Check className="w-3 h-3" />
+                        </div>
+                      )}
+                      <p className={`text-lg font-bold ${getTextClass()}`}>€{service.price}</p>
+                    </div>
                   </div>
                   <div className={`flex items-center gap-2 ${getTextMutedClass()} text-sm`}>
                     <Clock className="w-4 h-4" />
@@ -358,6 +414,31 @@ const ModernBookingForm = ({
                 </button>
               ))}
             </div>
+
+            {/* Selected Services Summary */}
+            {selectedServiceIds.length > 0 && (
+              <div className={`mt-6 p-4 rounded-xl ${getCardBgClassSecondary()} border ${getBorderClass()}`}>
+                <div className="flex justify-between items-center mb-2">
+                  <p className={`text-sm font-medium ${getTextClass()}`}>Selected Services ({selectedServiceIds.length})</p>
+                  <p className={`text-lg font-bold ${getTextClass()}`}>€{totalPrice}</p>
+                </div>
+                <p className={`text-xs ${getTextMutedClass()}`}>Total duration: {totalDuration} mins</p>
+              </div>
+            )}
+
+            {/* Continue Button */}
+            {selectedServiceIds.length > 0 && (
+              <div className="mt-6">
+                <Button
+                  onClick={handleServiceContinue}
+                  className="w-full py-3 px-6 rounded-xl font-semibold text-white transition-all"
+                  style={accentStyle}
+                >
+                  Continue
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </div>
+            )}
 
             {/* Footer */}
             <p className={`text-center ${getTextMutedClass()} text-xs mt-8`}>
@@ -393,65 +474,49 @@ const ModernBookingForm = ({
             </div>
 
             {/* Service Selection or Selected Service */}
-            {step === "service" ? (
+            {selectedServices.length > 0 ? (
               <>
-                <h2 className={`text-xl font-semibold ${getTextClass()} mb-4`}>Select a Service</h2>
-                <div className="space-y-3 flex-1 overflow-y-auto">
-                  {services.map((service) => (
-                    <button
+                {/* Selected Services List */}
+                <h2 className={`text-xl font-semibold ${getTextClass()} mb-4`}>Selected Services</h2>
+                <div className="space-y-2 flex-1 overflow-y-auto">
+                  {selectedServices.map((service) => (
+                    <div 
                       key={service.id}
-                      onClick={() => handleServiceSelect(service.id)}
-                      className={cn(
-                        `w-full p-4 rounded-xl border text-left transition-all ${getCardBgClass()}`,
-                        selectedServiceId === service.id
-                          ? "border-red-500 bg-[#2a2a2a]"
-                          : getBorderClass() + " hover:border-gray-600"
-                      )}
-                      style={selectedServiceId === service.id ? accentBgLightStyle : {}}
+                      className={`p-3 rounded-lg ${getCardBgClassSecondary()} border ${getBorderClass()} flex justify-between items-center`}
                     >
-                      <div className="flex justify-between items-start mb-2">
-                        <p className={`font-medium ${getTextClass()}`}>{service.name}</p>
-                        <p className={`text-lg font-bold ${getTextClass()}`}>€{service.price}</p>
+                      <div>
+                        <p className={`font-medium ${getTextClass()} text-sm`}>{service.name}</p>
+                        <p className={`text-xs ${getTextMutedClass()}`}>{service.duration} mins · €{service.price}</p>
                       </div>
-                      <p className={`text-sm ${getTextMutedClass()}`}>{service.duration} mins</p>
-                    </button>
+                      <button
+                        onClick={() => removeService(service.id)}
+                        className={`p-1.5 rounded-lg ${getCardBgClassTertiary()} ${getTextMutedClass()} hover:${getTextClass()} transition-colors`}
+                        title="Remove service"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                    </div>
                   ))}
                 </div>
-              </>
-            ) : selectedService ? (
-              <>
-                {/* Selected Service Title */}
-                <h2 className={`text-xl font-semibold ${getTextClass()} mb-2`}>
-                  [{selectedService.duration}-min] {selectedService.name}
-                </h2>
                 
-                {selectedService.description && (
-                  <p className={`text-sm ${getTextMutedClass()} mb-6 leading-relaxed`}>{selectedService.description}</p>
-                )}
-
-                {/* Service Details */}
-                <div className="space-y-3 text-sm">
-                  <div className={`flex items-center gap-2 ${getTextSecondaryClass()}`}>
-                    <Clock className={`w-4 h-4 ${getTextMutedClass()}`} />
-                    <span>{selectedService.duration} min</span>
+                {/* Add More Services Button */}
+                <button
+                  onClick={() => handleBack("service")}
+                  className={`mt-3 w-full py-2 px-4 rounded-lg border ${getBorderClass()} ${getTextMutedClass()} hover:${getTextClass()} hover:${getCardBgClassSecondary()} transition-colors text-sm flex items-center justify-center gap-2`}
+                >
+                  <span>+ Add another service</span>
+                </button>
+                
+                {/* Total Summary */}
+                <div className={`mt-4 pt-4 border-t ${getBorderClass()}`}>
+                  <div className="flex justify-between items-center">
+                    <p className={`text-sm ${getTextMutedClass()}`}>Total Duration</p>
+                    <p className={`text-sm font-medium ${getTextClass()}`}>{totalDuration} mins</p>
                   </div>
-                  <div className={`flex items-center gap-2 ${getTextSecondaryClass()}`}>
-                    <Video className={`w-4 h-4 ${getTextMutedClass()}`} />
-                    <span>Google Meet</span>
+                  <div className="flex justify-between items-center mt-2">
+                    <p className={`text-sm ${getTextMutedClass()}`}>Total Price</p>
+                    <p className={`text-xl font-bold ${getTextClass()}`}>€{totalPrice}</p>
                   </div>
-                  <div className={`flex items-center gap-2 ${getTextSecondaryClass()}`}>
-                    <MapPin className={`w-4 h-4 ${getTextMutedClass()}`} />
-                    <span>{businessProfile?.address || "Salon Location"}</span>
-                  </div>
-                  <div className={`flex items-center gap-2 ${getTextSecondaryClass()}`}>
-                    <Globe className={`w-4 h-4 ${getTextMutedClass()}`} />
-                    <span>Europe/Athens</span>
-                  </div>
-                </div>
-
-                {/* Price */}
-                <div className="mt-auto pt-6">
-                  <p className={`text-2xl font-bold ${getTextClass()}`}>€{selectedService.price}</p>
                 </div>
 
                 {/* Back Button */}
@@ -460,10 +525,21 @@ const ModernBookingForm = ({
                   className={`flex items-center gap-2 ${getTextMutedClass()} hover:${getTextClass()} transition-colors mt-4 text-sm`}
                 >
                   <ChevronLeft className="w-4 h-4" />
-                  <span>Change service</span>
+                  <span>Change services</span>
                 </button>
               </>
-            ) : null}
+            ) : (
+              <>
+                <h2 className={`text-xl font-semibold ${getTextClass()} mb-4`}>No Services Selected</h2>
+                <button
+                  onClick={() => handleBack("service")}
+                  className={`flex items-center gap-2 ${getTextMutedClass()} hover:${getTextClass()} transition-colors text-sm`}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  <span>Back to services</span>
+                </button>
+              </>
+            )}
           </div>
 
           {/* Center Panel - Calendar */}

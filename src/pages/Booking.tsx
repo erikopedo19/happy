@@ -16,7 +16,7 @@ const bookingSchema = z.object({
   customer_name: z.string().min(1, "Name is required"),
   customer_email: z.string().email("Valid email is required"),
   customer_phone: z.string().optional(),
-  service_id: z.string().min(1, "Please select a service"),
+  service_ids: z.array(z.string()).min(1, "Please select at least one service"),
   stylist_id: z.string().min(1, "Please select a stylist"),
   notes: z.string().optional(),
 });
@@ -87,7 +87,7 @@ const Booking = () => {
       customer_name: "",
       customer_email: "",
       customer_phone: "",
-      service_id: "",
+      service_ids: [] as string[],
       stylist_id: "",
       notes: "",
     },
@@ -330,12 +330,15 @@ const Booking = () => {
   // Check if a time slot is available
   const isTimeSlotAvailable = (time: string) => {
     try {
-      const selectedServiceId = form.watch("service_id");
+      const selectedServiceIds = form.watch("service_ids") as string[];
       const stylistId = selectedStylistId;
-      if (!selectedServiceId || !selectedDate) return false;
+      if (!selectedServiceIds || selectedServiceIds.length === 0 || !selectedDate) return false;
       
-      const selectedService = services.find(s => s.id === selectedServiceId);
-      if (!selectedService) return false;
+      // Calculate total duration of all selected services
+      const totalDuration = selectedServiceIds.reduce((sum, serviceId) => {
+        const service = services.find(s => s.id === serviceId);
+        return sum + (service?.duration || 0);
+      }, 0);
 
       // Check if selected date is a working day
       const dayOfWeek = selectedDate.getDay();
@@ -358,7 +361,7 @@ const Booking = () => {
       }
 
       const slotInterval = settings?.service_duration || 30;
-      const slotsNeeded = Math.ceil(selectedService.duration / slotInterval);
+      const slotsNeeded = Math.ceil(totalDuration / slotInterval);
       const startSlotIndex = timeSlots.indexOf(time);
       
       // Check if this slot and required subsequent slots are free
@@ -400,11 +403,14 @@ const Booking = () => {
   const getAvailableStylistsForTime = (selectedTime: string) => {
     if (!selectedTime || !selectedDate) return [];
     
-    const selectedServiceId = form.watch("service_id");
-    if (!selectedServiceId) return [];
+    const selectedServiceIds = form.watch("service_ids") as string[];
+    if (!selectedServiceIds || selectedServiceIds.length === 0) return [];
     
-    const selectedService = services.find(s => s.id === selectedServiceId);
-    if (!selectedService) return [];
+    // Calculate total duration of all selected services
+    const totalDuration = selectedServiceIds.reduce((sum, serviceId) => {
+      const service = services.find(s => s.id === serviceId);
+      return sum + (service?.duration || 0);
+    }, 0);
 
     // Check if selected date is a working day
     const dayOfWeek = selectedDate.getDay();
@@ -426,7 +432,7 @@ const Booking = () => {
     }
 
     const slotInterval = settings?.service_duration || 30;
-    const slotsNeeded = Math.ceil(selectedService.duration / slotInterval);
+    const slotsNeeded = Math.ceil(totalDuration / slotInterval);
     const startSlotIndex = timeSlots.indexOf(selectedTime);
     
     return stylists.filter(stylist => {
@@ -490,14 +496,17 @@ const Booking = () => {
   const getAvailableTimesForStylistAndDate = (stylistId: string, date: Date) => {
     if (!stylistId || !date) return [];
     
-    const selectedServiceId = form.watch("service_id");
-    if (!selectedServiceId) return [];
+    const selectedServiceIds = form.watch("service_ids") as string[];
+    if (!selectedServiceIds || selectedServiceIds.length === 0) return [];
     
-    const selectedService = services.find(s => s.id === selectedServiceId);
-    if (!selectedService) return [];
+    // Calculate total duration of all selected services
+    const totalDuration = selectedServiceIds.reduce((sum, serviceId) => {
+      const service = services.find(s => s.id === serviceId);
+      return sum + (service?.duration || 0);
+    }, 0);
 
     const slotInterval = settings?.service_duration || 30;
-    const slotsNeeded = Math.ceil(selectedService.duration / slotInterval);
+    const slotsNeeded = Math.ceil(totalDuration / slotInterval);
     
     return timeSlots.filter(time => {
       // Check if this stylist has all required slots free
@@ -627,15 +636,17 @@ const Booking = () => {
       }
 
       // Create appointment with the business owner's user_id
+      // For now, we use the first service as the primary service_id (database constraint)
+      // All services are stored in the notes field for reference
       const { data: newAppointment, error: appointmentError } = await (supabase as any)
         .from('appointments')
         .insert({
           customer_id: customer.id,
-          service_id: values.service_id,
+          service_id: values.service_ids[0],
           stylist_id: values.stylist_id,
           appointment_date: format(selectedDate, 'yyyy-MM-dd'),
           appointment_time: selectedTime,
-          notes: values.notes || null,
+          notes: values.notes || `Additional services: ${values.service_ids.slice(1).join(', ')}`,
           status: 'scheduled',
           user_id: businessProfile.id,
         })
@@ -657,7 +668,8 @@ const Booking = () => {
 
       // Send confirmation email via Resend
       try {
-        const selectedService = services.find(s => s.id === values.service_id);
+        const selectedServicesList = values.service_ids.map(id => services.find(s => s.id === id)).filter(Boolean);
+        const firstService = selectedServicesList[0];
         const selectedStylist = stylists.find(s => s.id === values.stylist_id);
         const { data: emailData, error: emailError } = await (supabase as any).functions.invoke('send-booking-confirmation', {
           body: {
@@ -665,11 +677,11 @@ const Booking = () => {
             customerName: values.customer_name,
             customerPhone: values.customer_phone,
             businessName: businessProfile.full_name,
-            serviceName: selectedService?.name || 'Service',
+            serviceName: firstService?.name || 'Service',
             appointmentDate: format(selectedDate, 'EEEE, MMMM d, yyyy'),
             appointmentTime: selectedTime,
-            price: selectedService?.price,
-            notes: values.notes,
+            price: selectedServicesList.reduce((sum, s) => sum + (s?.price || 0), 0),
+            notes: values.notes || (selectedServicesList.length > 1 ? `Additional services: ${selectedServicesList.slice(1).map(s => s?.name).join(', ')}` : ''),
             bookingId: newAppointment?.id?.substring(0, 8), // Use first 8 chars of UUID
             theme: emailTheme,
             accentColor,
