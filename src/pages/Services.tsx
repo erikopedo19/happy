@@ -219,16 +219,16 @@ const Services = () => {
 
   return (
     <SidebarProvider>
-      <div className="h-screen flex w-full bg-white overflow-hidden" style={{ transform: 'scale(1.2)', transformOrigin: 'top left', width: '83.33%' }}>
+      <div className="h-screen flex w-full bg-white overflow-hidden">
         <AppSidebar />
         <main className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-auto p-6">
+          <div className="flex-1 overflow-auto p-4 md:p-6">
             <div className="max-w-6xl mx-auto">
-            <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center justify-between mb-6 md:mb-8">
               <div>
-                <h1 className="text-3xl font-bold text-foreground">Services</h1>
-                <p className="text-muted-foreground mt-2">
-                  Manage your salon services and their settings
+                <h1 className="text-2xl md:text-3xl font-bold text-foreground">Services</h1>
+                <p className="text-muted-foreground text-sm md:text-base mt-1 md:mt-2">
+                  Manage your salon services
                 </p>
               </div>
               
@@ -397,7 +397,7 @@ const Services = () => {
                               </CardDescription>
                             </div>
                           </div>
-                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                             <Button
                               variant="ghost"
                               size="icon"

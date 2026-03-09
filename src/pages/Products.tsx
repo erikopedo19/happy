@@ -70,10 +70,10 @@ const Products = () => {
 
   return (
     <SidebarProvider>
-      <div className="h-screen flex w-full bg-white overflow-hidden" style={{ transform: 'scale(1.2)', transformOrigin: 'top left', width: '83.33%' }}>
+      <div className="h-screen flex w-full bg-white overflow-hidden">
         <AppSidebar />
         <main className="flex-1 bg-apple-gray-50 flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-auto p-8">
+          <div className="flex-1 overflow-auto p-4 md:p-8">
             <ProductsHeader onAddProduct={handleAddProduct} />
             <ProductsGrid 
               products={products}

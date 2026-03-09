@@ -170,7 +170,7 @@ const ModernBookingForm = ({
 
   const handleServiceContinue = () => {
     if (selectedServiceIds.length === 0) return;
-    form.setValue("service_ids", selectedServiceIds);
+    form.setValue("service_ids", selectedServiceIds, { shouldValidate: false });
     setAnimationDirection("forward");
     setStep("datetime");
   };
@@ -226,9 +226,19 @@ const ModernBookingForm = ({
     return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
   };
 
+  // Calculate end time for a slot given total duration
+  const getEndTime = (startTime: string, durationMins: number) => {
+    const [hours, minutes] = startTime.split(':').map(Number);
+    const totalMinutes = hours * 60 + minutes + durationMins;
+    const endHours = Math.floor(totalMinutes / 60);
+    const endMinutes = totalMinutes % 60;
+    return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
+  };
+
   const handleSubmit = async (values: any) => {
-    // Ensure stylist_id is set if stylists are available
-    if (stylists.length > 0 && !values.stylist_id && selectedStylistId) {
+    // Always inject current state into form values before submit
+    values.service_ids = selectedServiceIds;
+    if (selectedStylistId) {
       values.stylist_id = selectedStylistId;
     }
     const success = await onSubmit(values);
@@ -655,21 +665,31 @@ const ModernBookingForm = ({
                 <div className="space-y-2 max-h-[400px] overflow-y-auto">
                   {selectedDate ? (
                     availableTimeSlots.length > 0 ? (
-                      availableTimeSlots.map((time) => (
+                      availableTimeSlots.map((time) => {
+                        const endTime = totalDuration > 0 ? getEndTime(time, totalDuration) : '';
+                        const showRange = totalDuration > 30;
+                        return (
                         <button
                           key={time}
                           onClick={() => handleTimeSelect(time)}
                           className={cn(
-                            `w-full py-3 px-4 rounded-xl border font-medium transition-all text-center ${getTextClass()}`,
+                            `w-full rounded-xl border font-medium transition-all text-center ${getTextClass()}`,
                             selectedTime === time
                               ? "border-transparent text-white"
-                              : `${getBorderClass()} hover:border-gray-600 ${getCardBgClassSecondary()}`
+                              : `${getBorderClass()} hover:border-gray-600 ${getCardBgClassSecondary()}`,
+                            showRange ? "py-3 px-4" : "py-3 px-4"
                           )}
                           style={selectedTime === time ? accentBgLightStyle : {}}
                         >
-                          {formatTime(time)}
+                          <span>{formatTime(time)}</span>
+                          {showRange && (
+                            <span className={`text-xs ml-1 ${selectedTime === time ? 'opacity-80' : getTextMutedClass()}`}>
+                              → {formatTime(endTime)}
+                            </span>
+                          )}
                         </button>
-                      ))
+                        );
+                      })
                     ) : (
                       <div className={`text-center ${getTextMutedClass()} py-4 text-sm`}>
                         No available times

@@ -1,20 +1,23 @@
 
 import { useState, useEffect } from "react";
-import { Clock, Save, Calendar, Loader2, Bell, User } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { Clock, Save, Calendar, Loader2, Bell, User, Settings2, Link2, Palette, ChevronRight } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { SidebarTrigger } from "@/components/ui/sidebar";
 import BookingLinkGenerator from "@/components/BookingLinkGenerator";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { TimeInput } from "@heroui/react";
-import { Time } from "@internationalized/date";
+import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const serviceDurationOptions = [10, 15, 20, 25, 30, 45, 60, 90];
 
@@ -22,9 +25,11 @@ const Settings = () => {
   const [selectedDuration, setSelectedDuration] = useState(30);
   const [startHour, setStartHour] = useState("08:00");
   const [endHour, setEndHour] = useState("18:00");
+  const [activeTab, setActiveTab] = useState("general");
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
 
   const { data: settings, isLoading: isLoadingSettings } = useQuery({
     queryKey: ['agenda_settings', user?.id],
@@ -88,241 +93,258 @@ const Settings = () => {
   };
 
   const generateTimeSlots = () => {
-    const slots = [];
+    const slots: string[] = [];
     if (!startHour || !endHour) return slots;
     const start = parseInt(startHour.split(':')[0]);
     const end = parseInt(endHour.split(':')[0]);
-    
     for (let hour = start; hour <= end; hour++) {
       slots.push(`${hour.toString().padStart(2, '0')}:00`);
     }
-    
     return slots;
   };
 
+  // Notification items
+  const notifications = [
+    { id: "new-bookings", label: "New Bookings", desc: "Get notified when new appointments are booked", default: true },
+    { id: "reminders", label: "Appointment Reminders", desc: "Send reminders before appointments", default: true },
+    { id: "cancellations", label: "Cancellations", desc: "Get notified when appointments are cancelled", default: true },
+    { id: "daily-digest", label: "Daily Digest", desc: "Receive a summary of your daily schedule", default: false },
+  ];
+
   return (
-    <SidebarProvider>
-      <div className="h-screen flex w-full bg-gray-50 overflow-hidden" style={{ transform: 'scale(1.2)', transformOrigin: 'top left', width: '83.33%' }}>
+    <SidebarProvider defaultOpen={!isMobile}>
+      <div className="h-screen flex w-full bg-[#f8f9fa] overflow-hidden">
         <AppSidebar />
-        <main className="flex-1 bg-white flex flex-col overflow-hidden">
-          <header className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
-            <div className="flex items-center gap-4">
-              <SidebarTrigger className="text-gray-600 hover:text-gray-900" />
-              <div className="flex items-center gap-2">
-                <Clock className="w-5 h-5 text-blue-600" />
+        <main className="flex-1 flex flex-col overflow-hidden">
+          {/* Mobile Header */}
+          <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm">
+            <div className="px-4 md:px-6 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <SidebarTrigger className="text-gray-600 hover:text-gray-900 lg:hidden" />
                 <div>
-                  <h1 className="text-xl font-semibold text-gray-900">Settings</h1>
-                  <p className="text-sm text-gray-500">Configure your agenda preferences</p>
+                  <h1 className="text-lg font-semibold text-gray-900">Settings</h1>
+                  <p className="text-xs text-gray-500 hidden sm:block">Manage your workspace preferences</p>
                 </div>
               </div>
+              <Button 
+                onClick={handleSave} 
+                disabled={isSaving} 
+                size="sm"
+                className="bg-gray-900 hover:bg-gray-800 text-white rounded-xl h-9 px-4 text-sm font-medium"
+              >
+                {isSaving ? (
+                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                ) : (
+                  <Save className="w-3.5 h-3.5 mr-1.5" />
+                )}
+                {isSaving ? "Saving..." : "Save"}
+              </Button>
             </div>
-          </header>
+          </div>
 
-          <div className="flex-1 overflow-auto p-6 max-w-4xl mx-auto w-full">
-            {isLoadingSettings ? (
-              <div className="flex justify-center items-center h-64">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          {/* Content with Tabs */}
+          <div className="flex-1 overflow-auto">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
+              {/* Tabs Navigation */}
+              <div className="bg-white border-b border-gray-200 px-4 md:px-6">
+                <TabsList className="h-11 bg-transparent border-0 p-0 gap-1 w-full justify-start overflow-x-auto">
+                  <TabsTrigger 
+                    value="general" 
+                    className="data-[state=active]:bg-gray-100 data-[state=active]:text-gray-900 data-[state=active]:shadow-none rounded-lg px-3 py-1.5 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
+                  >
+                    <Settings2 className="w-4 h-4 mr-1.5" />
+                    General
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="booking" 
+                    className="data-[state=active]:bg-gray-100 data-[state=active]:text-gray-900 data-[state=active]:shadow-none rounded-lg px-3 py-1.5 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
+                  >
+                    <Link2 className="w-4 h-4 mr-1.5" />
+                    Booking
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="notifications" 
+                    className="data-[state=active]:bg-gray-100 data-[state=active]:text-gray-900 data-[state=active]:shadow-none rounded-lg px-3 py-1.5 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
+                  >
+                    <Bell className="w-4 h-4 mr-1.5" />
+                    Notifications
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="business" 
+                    className="data-[state=active]:bg-gray-100 data-[state=active]:text-gray-900 data-[state=active]:shadow-none rounded-lg px-3 py-1.5 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
+                  >
+                    <User className="w-4 h-4 mr-1.5" />
+                    Business
+                  </TabsTrigger>
+                </TabsList>
               </div>
-            ) : (
-              <div className="space-y-6">
-                {/* Booking Link Generator */}
-                <BookingLinkGenerator />
-                
-                {/* Service Duration Settings */}
-                <Card className="p-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Clock className="w-5 h-5 text-blue-600" />
-                    <h2 className="text-lg font-semibold text-gray-900">Service Duration</h2>
-                  </div>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Select the default duration for your services in minutes.
-                  </p>
-                  
-                  <div className="grid grid-cols-4 gap-3">
-                    {serviceDurationOptions.map((duration) => (
-                      <button
-                        key={duration}
-                        onClick={() => setSelectedDuration(duration)}
-                        className={`p-3 rounded-lg border text-sm font-medium transition-colors ${
-                          selectedDuration === duration
-                            ? 'bg-blue-600 text-white border-blue-600'
-                            : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300'
-                        }`}
-                      >
-                        {duration} min
-                      </button>
-                    ))}
-                  </div>
-                </Card>
 
-                {/* Available Hours Settings */}
-                <Card className="p-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Calendar className="w-5 h-5 text-blue-600" />
-                    <h2 className="text-lg font-semibold text-gray-900">Available Hours</h2>
+              <div className="p-4 md:p-6 max-w-3xl mx-auto w-full">
+                {isLoadingSettings ? (
+                  <div className="flex justify-center items-center h-64">
+                    <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
                   </div>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Set your working hours for the agenda display.
-                  </p>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="startHour" className="text-sm font-medium text-gray-700">
-                        Start Time
-                      </Label>
-                      <TimeInput
-                        id="startHour"
-                        label="Start Time"
-                        value={startHour ? new Time(parseInt(startHour.split(':')[0]), parseInt(startHour.split(':')[1] || '0')) : undefined}
-                        onChange={(time) => setStartHour(time ? `${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}` : '')}
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="endHour" className="text-sm font-medium text-gray-700">
-                        End Time
-                      </Label>
-                      <TimeInput
-                        id="endHour"
-                        label="End Time"
-                        value={endHour ? new Time(parseInt(endHour.split(':')[0]), parseInt(endHour.split(':')[1] || '0')) : undefined}
-                        onChange={(time) => setEndHour(time ? `${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}` : '')}
-                        className="mt-1"
-                      />
-                    </div>
-                  </div>
-                </Card>
+                ) : (
+                  <>
+                    {/* General Tab */}
+                    <TabsContent value="general" className="mt-0 space-y-4">
+                      {/* Service Duration */}
+                      <Card className="border border-gray-200 shadow-sm rounded-2xl overflow-hidden">
+                        <CardHeader className="pb-3 px-4 md:px-6 pt-4 md:pt-6">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+                              <Clock className="w-4.5 h-4.5 text-blue-600" />
+                            </div>
+                            <div>
+                              <CardTitle className="text-base font-semibold text-gray-900">Slot Duration</CardTitle>
+                              <CardDescription className="text-xs text-gray-500">Default time per service slot</CardDescription>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
+                          <div className="grid grid-cols-4 gap-2">
+                            {serviceDurationOptions.map((duration) => (
+                              <button
+                                key={duration}
+                                onClick={() => setSelectedDuration(duration)}
+                                className={cn(
+                                  "py-2.5 px-2 rounded-xl border text-sm font-medium transition-all",
+                                  selectedDuration === duration
+                                    ? "bg-gray-900 text-white border-gray-900 shadow-sm"
+                                    : "bg-white text-gray-600 border-gray-200 hover:border-gray-400 hover:text-gray-900"
+                                )}
+                              >
+                                {duration}m
+                              </button>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
 
-                {/* Service Categories */}
-                <Card className="p-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Clock className="w-5 h-5 text-blue-600" />
-                    <h2 className="text-lg font-semibold text-gray-900">Service Categories</h2>
-                  </div>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Manage your service categories for better organization.
-                  </p>
-                  
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {['Haircuts', 'Styling', 'Coloring', 'Treatments', 'Beard Care', 'Shaving', 'Hair Wash', 'Consultation', 'Special Events', 'Kids Services'].map((category) => (
-                      <div
-                        key={category}
-                        className="p-3 rounded-lg border border-gray-200 bg-gray-50 text-sm font-medium text-gray-700 text-center hover:border-blue-300 hover:bg-blue-50 transition-colors cursor-pointer"
-                      >
-                        {category}
-                      </div>
-                    ))}
-                  </div>
-                </Card>
+                      {/* Working Hours */}
+                      <Card className="border border-gray-200 shadow-sm rounded-2xl overflow-hidden">
+                        <CardHeader className="pb-3 px-4 md:px-6 pt-4 md:pt-6">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
+                              <Calendar className="w-4.5 h-4.5 text-green-600" />
+                            </div>
+                            <div>
+                              <CardTitle className="text-base font-semibold text-gray-900">Working Hours</CardTitle>
+                              <CardDescription className="text-xs text-gray-500">Set your daily availability</CardDescription>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <Label className="text-xs font-medium text-gray-500 mb-1.5 block">Opens at</Label>
+                              <Input
+                                type="time"
+                                value={startHour}
+                                onChange={(e) => setStartHour(e.target.value)}
+                                className="rounded-xl border-gray-200 focus:border-gray-400 focus:ring-gray-400 h-10 text-sm"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs font-medium text-gray-500 mb-1.5 block">Closes at</Label>
+                              <Input
+                                type="time"
+                                value={endHour}
+                                onChange={(e) => setEndHour(e.target.value)}
+                                className="rounded-xl border-gray-200 focus:border-gray-400 focus:ring-gray-400 h-10 text-sm"
+                              />
+                            </div>
+                          </div>
 
-                {/* Notification Settings */}
-                <Card className="p-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Bell className="w-5 h-5 text-blue-600" />
-                    <h2 className="text-lg font-semibold text-gray-900">Notification Settings</h2>
-                  </div>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Configure when and how you receive notifications.
-                  </p>
-                  
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">New Bookings</p>
-                        <p className="text-xs text-gray-500">Get notified when new appointments are booked</p>
-                      </div>
-                      <input type="checkbox" defaultChecked className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">Appointment Reminders</p>
-                        <p className="text-xs text-gray-500">Send reminders before appointments</p>
-                      </div>
-                      <input type="checkbox" defaultChecked className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">Cancellations</p>
-                        <p className="text-xs text-gray-500">Get notified when appointments are cancelled</p>
-                      </div>
-                      <input type="checkbox" defaultChecked className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                    </div>
-                  </div>
-                </Card>
+                          <Separator className="my-4" />
 
-                {/* Business Information */}
-                <Card className="p-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <User className="w-5 h-5 text-blue-600" />
-                    <h2 className="text-lg font-semibold text-gray-900">Business Information</h2>
-                  </div>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Update your business details and contact information.
-                  </p>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="businessName" className="text-sm font-medium text-gray-700">
-                        Business Name
-                      </Label>
-                      <Input
-                        id="businessName"
-                        placeholder="Your Business Name"
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="businessPhone" className="text-sm font-medium text-gray-700">
-                        Phone Number
-                      </Label>
-                      <Input
-                        id="businessPhone"
-                        placeholder="+1 (555) 123-4567"
-                        className="mt-1"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <Label htmlFor="businessAddress" className="text-sm font-medium text-gray-700">
-                        Address
-                      </Label>
-                      <Input
-                        id="businessAddress"
-                        placeholder="123 Main St, City, State 12345"
-                        className="mt-1"
-                      />
-                    </div>
-                  </div>
-                </Card>
+                          {/* Preview */}
+                          <div className="bg-gray-50 rounded-xl p-3">
+                            <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">Preview</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {generateTimeSlots().map((slot) => (
+                                <Badge key={slot} variant="secondary" className="bg-white border border-gray-200 text-gray-600 text-xs font-medium rounded-lg px-2 py-0.5">
+                                  {slot}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </TabsContent>
 
-                {/* Preview */}
-                <Card className="p-6">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Preview</h2>
-                  <div className="space-y-2">
-                    <p className="text-sm text-gray-600">
-                      <span className="font-medium">Service Duration:</span> {selectedDuration} minutes
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      <span className="font-medium">Working Hours:</span> {startHour} - {endHour}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      <span className="font-medium">Time Slots:</span> {generateTimeSlots().join(', ')}
-                    </p>
-                  </div>
-                </Card>
+                    {/* Booking Tab */}
+                    <TabsContent value="booking" className="mt-0 space-y-4">
+                      <BookingLinkGenerator />
+                    </TabsContent>
 
-                {/* Save Button */}
-                <div className="flex justify-end">
-                  <Button onClick={handleSave} disabled={isSaving} className="bg-blue-600 hover:bg-blue-700">
-                    {isSaving ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Save className="w-4 h-4 mr-2" />
-                    )}
-                    {isSaving ? "Saving..." : "Save Settings"}
-                  </Button>
-                </div>
+                    {/* Notifications Tab */}
+                    <TabsContent value="notifications" className="mt-0 space-y-4">
+                      <Card className="border border-gray-200 shadow-sm rounded-2xl overflow-hidden">
+                        <CardHeader className="pb-2 px-4 md:px-6 pt-4 md:pt-6">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+                              <Bell className="w-4.5 h-4.5 text-amber-600" />
+                            </div>
+                            <div>
+                              <CardTitle className="text-base font-semibold text-gray-900">Notifications</CardTitle>
+                              <CardDescription className="text-xs text-gray-500">Choose what you get notified about</CardDescription>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
+                          <div className="space-y-1">
+                            {notifications.map((item, index) => (
+                              <div key={item.id}>
+                                <div className="flex items-center justify-between py-3">
+                                  <div className="flex-1 min-w-0 pr-4">
+                                    <p className="text-sm font-medium text-gray-900">{item.label}</p>
+                                    <p className="text-xs text-gray-500 mt-0.5">{item.desc}</p>
+                                  </div>
+                                  <Switch defaultChecked={item.default} />
+                                </div>
+                                {index < notifications.length - 1 && <Separator />}
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </TabsContent>
+
+                    {/* Business Tab */}
+                    <TabsContent value="business" className="mt-0 space-y-4">
+                      <Card className="border border-gray-200 shadow-sm rounded-2xl overflow-hidden">
+                        <CardHeader className="pb-3 px-4 md:px-6 pt-4 md:pt-6">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-purple-100 flex items-center justify-center flex-shrink-0">
+                              <User className="w-4.5 h-4.5 text-purple-600" />
+                            </div>
+                            <div>
+                              <CardTitle className="text-base font-semibold text-gray-900">Business Info</CardTitle>
+                              <CardDescription className="text-xs text-gray-500">Your public business details</CardDescription>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="px-4 md:px-6 pb-4 md:pb-6 space-y-3">
+                          <div>
+                            <Label className="text-xs font-medium text-gray-500 mb-1.5 block">Business Name</Label>
+                            <Input placeholder="Your Business Name" className="rounded-xl border-gray-200 h-10 text-sm" />
+                          </div>
+                          <div>
+                            <Label className="text-xs font-medium text-gray-500 mb-1.5 block">Phone Number</Label>
+                            <Input placeholder="+1 (555) 123-4567" className="rounded-xl border-gray-200 h-10 text-sm" />
+                          </div>
+                          <div>
+                            <Label className="text-xs font-medium text-gray-500 mb-1.5 block">Address</Label>
+                            <Input placeholder="123 Main St, City, State 12345" className="rounded-xl border-gray-200 h-10 text-sm" />
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </TabsContent>
+                  </>
+                )}
               </div>
-            )}
+            </Tabs>
           </div>
         </main>
       </div>

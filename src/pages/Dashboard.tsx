@@ -9,7 +9,7 @@ const Dashboard = () => {
 
   return (
     <SidebarProvider defaultOpen={!isMobile}>
-      <div className="h-screen flex w-full bg-background overflow-hidden" style={{ transform: 'scale(1.2)', transformOrigin: 'top left', width: '83.33%' }}>
+      <div className="h-screen flex w-full bg-background overflow-hidden">
         <AppSidebar />
         <main className="flex-1 bg-[#f8f9fa] flex flex-col overflow-hidden">
           <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-md border-b border-gray-200 p-4 lg:hidden shadow-sm">

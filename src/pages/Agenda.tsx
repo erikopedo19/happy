@@ -25,7 +25,8 @@ import {
   Plus,
   Filter
 } from "lucide-react";
-
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks } from 'date-fns';
 
 interface Service {
@@ -66,6 +67,7 @@ const Agenda = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
 
   const fetchStartDate = startOfWeek(subWeeks(currentDate, 4), { weekStartsOn: 1 });
   const fetchEndDate = endOfWeek(addWeeks(currentDate, 12), { weekStartsOn: 1 });
@@ -265,8 +267,8 @@ const Agenda = () => {
   }, [filteredAppointments]);
 
   return (
-    <SidebarProvider>
-      <div className="h-screen flex w-full bg-gradient-to-br from-gray-50 via-white to-gray-50 overflow-hidden" style={{ transform: 'scale(1.2)', transformOrigin: 'top left', width: '83.33%' }}>
+    <SidebarProvider defaultOpen={!isMobile}>
+      <div className="h-screen flex w-full bg-gradient-to-br from-gray-50 via-white to-gray-50 overflow-hidden">
         <AppSidebar />
         <main className="flex-1 flex flex-col overflow-hidden">
           {/* iOS-style Header */}
@@ -274,6 +276,7 @@ const Agenda = () => {
             <div className="px-4 md:px-6 py-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
               {/* Left: Title & Date */}
               <div className="flex items-center gap-3">
+                <SidebarTrigger className="text-gray-600 hover:text-gray-900 lg:hidden" />
                 <div>
                   <h1 className="text-lg font-semibold text-gray-900">Agenda</h1>
                   <p className="text-xs text-gray-500">

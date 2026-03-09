@@ -161,39 +161,39 @@ const Customers = () => {
 
   return (
     <SidebarProvider>
-      <div className="h-screen flex w-full bg-background overflow-hidden" style={{ transform: 'scale(1.2)', transformOrigin: 'top left', width: '83.33%' }}>
+      <div className="h-screen flex w-full bg-background overflow-hidden">
         <AppSidebar />
         <main className="flex-1 bg-[#f8f9fa] flex flex-col overflow-hidden">
-          <header className="bg-white border-b border-apple-gray-200 px-6 py-4 glass-effect flex-shrink-0">
-            <div className="flex items-center justify-between animate-slide-in-right">
-              <div className="flex items-center gap-4">
-                <SidebarTrigger className="text-apple-gray-600 hover:text-apple-gray-900 hover-scale transition-all duration-200" />
+          <header className="bg-white border-b border-apple-gray-200 px-4 md:px-6 py-3 md:py-4 glass-effect flex-shrink-0">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <SidebarTrigger className="text-apple-gray-600 hover:text-apple-gray-900 transition-all duration-200" />
                 <div>
-                  <h1 className="text-xl font-semibold text-apple-gray-900">Customers</h1>
-                  <p className="text-sm text-apple-gray-600">Manage your customer database</p>
+                  <h1 className="text-lg md:text-xl font-semibold text-apple-gray-900">Customers</h1>
+                  <p className="text-xs md:text-sm text-apple-gray-600 hidden sm:block">Manage your customer database</p>
                 </div>
               </div>
-              <div className="flex gap-3">
-                <Button variant="outline" className="hover-scale transition-all duration-300">
+              <div className="flex gap-2 md:gap-3">
+                <Button variant="outline" size="sm" className="hidden sm:flex">
                   <Search className="w-4 h-4 mr-2" />
                   Search
                 </Button>
-                <Button className="bg-gradient-blue hover:opacity-90 text-white hover-scale transition-all duration-300">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Customer
+                <Button size="sm" className="bg-gradient-blue hover:opacity-90 text-white">
+                  <Plus className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Add Customer</span>
                 </Button>
               </div>
             </div>
           </header>
 
-          <div className="flex-1 overflow-auto p-6">
+          <div className="flex-1 overflow-auto p-3 md:p-6">
             <Card className="bg-white border-0 shadow-sm overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-apple-gray-50">
                     <TableHead className="w-[35%] text-apple-gray-600 font-semibold">Name</TableHead>
-                    <TableHead className="text-apple-gray-600 font-semibold">Email</TableHead>
-                    <TableHead className="text-apple-gray-600 font-semibold">Phone</TableHead>
+                    <TableHead className="text-apple-gray-600 font-semibold hidden md:table-cell">Email</TableHead>
+                    <TableHead className="text-apple-gray-600 font-semibold hidden sm:table-cell">Phone</TableHead>
                     <TableHead className="text-right text-apple-gray-600 font-semibold">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -208,13 +208,13 @@ const Customers = () => {
                             <Skeleton className="h-5 w-32" />
                           </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="hidden md:table-cell">
                            <div className="flex items-center gap-2">
                              <Skeleton className="w-4 h-4" />
                              <Skeleton className="h-5 w-48" />
                            </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="hidden sm:table-cell">
                           <div className="flex items-center gap-2">
                             <Skeleton className="w-4 h-4" />
                             <Skeleton className="h-5 w-24" />
@@ -244,7 +244,7 @@ const Customers = () => {
                             <span>{customer.name}</span>
                           </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="hidden md:table-cell">
                           {customer.email && (
                             <div className="flex items-center gap-2 text-apple-gray-600">
                               <Mail className="w-4 h-4 flex-shrink-0" />
@@ -252,7 +252,7 @@ const Customers = () => {
                             </div>
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="hidden sm:table-cell">
                           {customer.phone && (
                             <div className="flex items-center gap-2 text-apple-gray-600">
                               <Phone className="w-4 h-4 flex-shrink-0" />

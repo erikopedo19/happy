@@ -16,8 +16,8 @@ const bookingSchema = z.object({
   customer_name: z.string().min(1, "Name is required"),
   customer_email: z.string().email("Valid email is required"),
   customer_phone: z.string().optional(),
-  service_ids: z.array(z.string()).min(1, "Please select at least one service"),
-  stylist_id: z.string().min(1, "Please select a stylist"),
+  service_ids: z.array(z.string()).optional(),
+  stylist_id: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -235,14 +235,13 @@ const Booking = () => {
   });
 
   // Fetch existing appointments for selected date
-  const selectedStylistId = form.watch("stylist_id");
+  const selectedStylistId = form.watch("stylist_id") || "";
 
   const { data: existingAppointments = [] } = useQuery<Appointment[], Error>({
     queryKey: [
       'public-appointments',
       businessProfile?.id ?? 'no-business',
       selectedDate ? format(selectedDate, 'yyyy-MM-dd') : 'no-date',
-      selectedStylistId ?? 'no-stylist'
     ],
     queryFn: async (): Promise<Appointment[]> => {
       if (!businessProfile?.id || !selectedDate) return [];
@@ -250,15 +249,16 @@ const Booking = () => {
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
       console.log('Fetching appointments for date:', dateStr);
       
-      const { data, error } = await (supabase
+      let query = (supabase
         .from('appointments') as any)
         .select(`
           *,
           service:services(*)
         `)
         .eq('user_id', businessProfile.id)
-        .eq('appointment_date', dateStr)
-        .eq('stylist_id', selectedStylistId);
+        .eq('appointment_date', dateStr);
+      
+      const { data, error } = await query;
       
       console.log('Appointments query result:', { data, error });
       
@@ -268,7 +268,7 @@ const Booking = () => {
       }
       return (data || []) as Appointment[];
     },
-    enabled: !!businessProfile?.id && !!selectedDate && !!selectedStylistId,
+    enabled: !!businessProfile?.id && !!selectedDate,
   });
 
   // Fetch stylist-service relationships
@@ -328,14 +328,14 @@ const Booking = () => {
   }, []);
 
   // Check if a time slot is available
-  const isTimeSlotAvailable = (time: string) => {
+  const isTimeSlotAvailable = (time: string, serviceIds?: string[]) => {
     try {
-      const selectedServiceIds = form.watch("service_ids") as string[];
+      const ids = serviceIds || (form.getValues("service_ids") as string[]);
       const stylistId = selectedStylistId;
-      if (!selectedServiceIds || selectedServiceIds.length === 0 || !selectedDate) return false;
+      if (!ids || ids.length === 0 || !selectedDate) return false;
       
       // Calculate total duration of all selected services
-      const totalDuration = selectedServiceIds.reduce((sum, serviceId) => {
+      const totalDuration = ids.reduce((sum, serviceId) => {
         const service = services.find(s => s.id === serviceId);
         return sum + (service?.duration || 0);
       }, 0);
@@ -400,14 +400,14 @@ const Booking = () => {
     }
   };
 
-  const getAvailableStylistsForTime = (selectedTime: string) => {
+  const getAvailableStylistsForTime = (selectedTime: string, serviceIds?: string[]) => {
     if (!selectedTime || !selectedDate) return [];
     
-    const selectedServiceIds = form.watch("service_ids") as string[];
-    if (!selectedServiceIds || selectedServiceIds.length === 0) return [];
+    const ids = serviceIds || (form.getValues("service_ids") as string[]);
+    if (!ids || ids.length === 0) return [];
     
     // Calculate total duration of all selected services
-    const totalDuration = selectedServiceIds.reduce((sum, serviceId) => {
+    const totalDur = ids.reduce((sum, serviceId) => {
       const service = services.find(s => s.id === serviceId);
       return sum + (service?.duration || 0);
     }, 0);
@@ -432,7 +432,7 @@ const Booking = () => {
     }
 
     const slotInterval = settings?.service_duration || 30;
-    const slotsNeeded = Math.ceil(totalDuration / slotInterval);
+    const slotsNeeded = Math.ceil(totalDur / slotInterval);
     const startSlotIndex = timeSlots.indexOf(selectedTime);
     
     return stylists.filter(stylist => {
@@ -493,14 +493,14 @@ const Booking = () => {
     return availableDates;
   };
 
-  const getAvailableTimesForStylistAndDate = (stylistId: string, date: Date) => {
+  const getAvailableTimesForStylistAndDate = (stylistId: string, date: Date, serviceIds?: string[]) => {
     if (!stylistId || !date) return [];
     
-    const selectedServiceIds = form.watch("service_ids") as string[];
-    if (!selectedServiceIds || selectedServiceIds.length === 0) return [];
+    const ids = serviceIds || (form.getValues("service_ids") as string[]);
+    if (!ids || ids.length === 0) return [];
     
     // Calculate total duration of all selected services
-    const totalDuration = selectedServiceIds.reduce((sum, serviceId) => {
+    const totalDuration = ids.reduce((sum, serviceId) => {
       const service = services.find(s => s.id === serviceId);
       return sum + (service?.duration || 0);
     }, 0);
@@ -534,14 +534,16 @@ const Booking = () => {
     });
   };
 
-  const onSubmit = async (values: z.infer<typeof bookingSchema>) => {
+  const onSubmit = async (values: any) => {
     setBookingError(null);
     
-    if (!businessProfile?.id || !selectedDate || !selectedTime) {
+    // Ensure service_ids is present
+    const serviceIds = values.service_ids || [];
+    if (!businessProfile?.id || !selectedDate || !selectedTime || serviceIds.length === 0) {
       const error: BookingError = {
         code: 'INCOMPLETE_BOOKING',
         message: 'Incomplete booking information',
-        details: 'Please select a date and time before confirming'
+        details: 'Please select services, a date and time before confirming'
       };
       setBookingError(error);
       toast({
@@ -636,20 +638,36 @@ const Booking = () => {
       }
 
       // Create appointment with the business owner's user_id
-      // For now, we use the first service as the primary service_id (database constraint)
-      // All services are stored in the notes field for reference
+      // Use the first service as the primary service_id (database constraint)
+      const appointmentData: any = {
+        customer_id: customer.id,
+        service_id: serviceIds[0],
+        appointment_date: format(selectedDate, 'yyyy-MM-dd'),
+        appointment_time: selectedTime,
+        status: 'scheduled',
+        user_id: businessProfile.id,
+      };
+      
+      // Only set stylist_id if one was selected
+      if (values.stylist_id) {
+        appointmentData.stylist_id = values.stylist_id;
+      }
+      
+      // Build notes: user notes + additional services info
+      const additionalServiceNames = serviceIds.slice(1).map((id: string) => {
+        const svc = services.find(s => s.id === id);
+        return svc?.name;
+      }).filter(Boolean);
+      
+      let notesText = values.notes || '';
+      if (additionalServiceNames.length > 0) {
+        notesText = notesText ? `${notesText} | Additional: ${additionalServiceNames.join(', ')}` : `Additional services: ${additionalServiceNames.join(', ')}`;
+      }
+      if (notesText) appointmentData.notes = notesText;
+      
       const { data: newAppointment, error: appointmentError } = await (supabase as any)
         .from('appointments')
-        .insert({
-          customer_id: customer.id,
-          service_id: values.service_ids[0],
-          stylist_id: values.stylist_id,
-          appointment_date: format(selectedDate, 'yyyy-MM-dd'),
-          appointment_time: selectedTime,
-          notes: values.notes || `Additional services: ${values.service_ids.slice(1).join(', ')}`,
-          status: 'scheduled',
-          user_id: businessProfile.id,
-        })
+        .insert(appointmentData)
         .select()
         .single();
 
@@ -668,7 +686,7 @@ const Booking = () => {
 
       // Send confirmation email via Resend
       try {
-        const selectedServicesList = values.service_ids.map(id => services.find(s => s.id === id)).filter(Boolean);
+        const selectedServicesList = serviceIds.map((id: string) => services.find(s => s.id === id)).filter(Boolean);
         const firstService = selectedServicesList[0];
         const selectedStylist = stylists.find(s => s.id === values.stylist_id);
         const { data: emailData, error: emailError } = await (supabase as any).functions.invoke('send-booking-confirmation', {
